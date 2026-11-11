@@ -211,8 +211,11 @@ struct SectionCard<Content: View>: View {
         }
         .background {
             if !glass {
+                // Some palettes (Juicebox light) reuse the background colour for
+                // surfaceContainer, so solid cards need the next step up to stay
+                // visible once the glass material is gone.
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(palette.surfaceContainer)
+                    .fill(palette.surfaceContainerHigh)
             }
         }
         .juiceGlass(enabled: glass)
