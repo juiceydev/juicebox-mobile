@@ -318,47 +318,47 @@ struct UploadView: View {
 
     private func fetchForm(_ palette: JuicePalette) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Spacer(minLength: 0)
-                PasteButton(payloadType: String.self) { values in
-                    guard let value = values.first?
-                        .trimmingCharacters(in: .whitespacesAndNewlines),
-                        !value.isEmpty else { return }
-                    link = value
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Link")
+                        .font(JuiceFont.body(13, weight: .medium))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                    Spacer(minLength: 8)
+                    PasteButton(payloadType: String.self) { values in
+                        guard let value = values.first?
+                            .trimmingCharacters(in: .whitespacesAndNewlines),
+                            !value.isEmpty else { return }
+                        link = value
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .tint(palette.primary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(palette.primary)
-            }
-            .padding(.horizontal, 20)
 
-            TextField(
-                "Link",
-                text: $link,
-                prompt: Text("YouTube, TikTok, X, SoundCloud…")
-                    .foregroundStyle(palette.onSurfaceVariant.opacity(0.75)),
-                axis: .vertical
-            )
-                .focused($linkFocused)
-                .font(JuiceFont.body(16))
-                .foregroundStyle(palette.onSurface)
-                .lineLimit(2...5)
-                .keyboardType(.URL)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+                TextField(
+                    "Link",
+                    text: $link,
+                    prompt: Text("YouTube, TikTok, X, SoundCloud…")
+                        .foregroundStyle(palette.onSurfaceVariant.opacity(0.75)),
+                    axis: .vertical
+                )
+                    .focused($linkFocused)
+                    .font(JuiceFont.body(16))
+                    .foregroundStyle(palette.onSurface)
+                    .lineLimit(2...5)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+            }
+            .padding(14)
             .background(
                 palette.surfaceContainerLow,
-                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(
-                        linkFocused ? palette.primary : palette.outline.opacity(0.5),
-                        lineWidth: linkFocused ? 1.6 : 1
-                    )
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(palette.outline.opacity(0.35), lineWidth: 1)
             )
             .padding(.horizontal, 20)
 
@@ -430,7 +430,7 @@ struct UploadView: View {
             }
             .background(
                 palette.surfaceContainerLow,
-                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
             )
             .padding(.horizontal, 20)
         }
@@ -460,36 +460,31 @@ struct UploadView: View {
     }
 
     private func fetchRow(_ palette: JuicePalette) -> some View {
-        HStack {
-            Text(link.isEmpty ? "Paste a supported link" : "Ready to fetch")
-                .font(JuiceFont.mono(12))
-                .foregroundStyle(palette.onSurfaceVariant)
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Button {
-                let started = model.fetchMedia(
-                    url: link,
-                    audioOnly: audioOnly,
-                    quality: quality,
-                    container: container,
-                    audioFormat: audioFormat,
-                    betterAudio: betterAudio
-                )
-                if started {
-                    link = ""
-                    linkFocused = false
-                }
-            } label: {
-                Label("Fetch", systemImage: "arrow.down.circle")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(palette.primary)
-            .disabled(
-                model.isUploading ||
-                link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        Button {
+            let started = model.fetchMedia(
+                url: link,
+                audioOnly: audioOnly,
+                quality: quality,
+                container: container,
+                audioFormat: audioFormat,
+                betterAudio: betterAudio
             )
+            if started {
+                link = ""
+                linkFocused = false
+            }
+        } label: {
+            Label("Fetch", systemImage: "arrow.down.circle")
+                .font(JuiceFont.body(16, weight: .semibold))
+                .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(palette.primary)
+        .disabled(
+            model.isUploading ||
+            link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
         .padding(.horizontal, 20)
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The same two faces the Compose app ships: Roboto for text, I pixel u for
 /// the wordmark. The bundled Roboto only has a regular cut, so heavier
@@ -17,34 +18,57 @@ enum JuiceFont {
     }
 }
 
-/// "JUICEBOX²" in the pixel face with the box icon's black keyline.
-struct TitleWordmark: View {
+/// "JUICEBOX²" in the pixel face with the box icon's black keyline. The keyline
+/// is a Core Text stroke, not a stack of shadows, so its corners stay mitred
+/// and square like the Compose `Stroke` on Android.
+struct TitleWordmark: UIViewRepresentable {
     var size: CGFloat = 28
     var color: Color
 
     private static let text = "JUICEBOX\u{00B2}"
 
-    var body: some View {
-        let outline = max(1, size * 0.055)
-        ZStack {
-            Text(Self.text)
-                .font(JuiceFont.wordmark(size))
-                .foregroundStyle(.black)
-                .shadow(color: .black, radius: 0, x: outline, y: 0)
-                .shadow(color: .black, radius: 0, x: -outline, y: 0)
-                .shadow(color: .black, radius: 0, x: 0, y: outline)
-                .shadow(color: .black, radius: 0, x: 0, y: -outline)
-                .shadow(color: .black, radius: 0, x: outline, y: outline)
-                .shadow(color: .black, radius: 0, x: -outline, y: outline)
-                .shadow(color: .black, radius: 0, x: outline, y: -outline)
-                .shadow(color: .black, radius: 0, x: -outline, y: -outline)
-            Text(Self.text)
-                .font(JuiceFont.wordmark(size))
-                .foregroundStyle(color)
+    func makeUIView(context: Context) -> UILabel {
+        let label = UILabel()
+        label.numberOfLines = 1
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.6
+        label.lineBreakMode = .byClipping
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return label
+    }
+
+    func updateUIView(_ label: UILabel, context: Context) {
+        let font = UIFont(name: "I-pixel-u", size: size)
+            ?? UIFont.systemFont(ofSize: size, weight: .bold)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byClipping
+        label.attributedText = NSAttributedString(
+            string: Self.text,
+            attributes: [
+                .font: font,
+                .foregroundColor: UIColor(color),
+                .strokeColor: UIColor.black,
+                .strokeWidth: -9,
+                .paragraphStyle: paragraph,
+            ]
+        )
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: UILabel,
+        context: Context
+    ) -> CGSize? {
+        let intrinsic = uiView.intrinsicContentSize
+        guard let width = proposal.width,
+              width > 0,
+              width < intrinsic.width else {
+            return intrinsic
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
-        .fixedSize(horizontal: false, vertical: true)
+        // Narrow rows shrink the wordmark instead of clipping it, matching the
+        // old `minimumScaleFactor` behaviour.
+        return CGSize(width: width, height: intrinsic.height)
     }
 }
 

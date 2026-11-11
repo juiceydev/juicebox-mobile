@@ -13,12 +13,16 @@ struct UploadLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     UploadIcon(phase: context.state.phase, size: 18)
                         .frame(width: 28, height: 28)
+                        .padding(.leading, 4)
+                        .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(percentText(context.state))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color(hex: 0xF97316))
+                        .padding(.trailing, 4)
+                        .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -30,11 +34,15 @@ struct UploadLiveActivity: Widget {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+                    .padding(.horizontal, 4)
+                    .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     ProgressView(value: min(1, max(0, context.state.progress)))
                         .tint(Color(hex: 0xF97316))
-                        .padding(.top, 2)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 6)
+                        .padding(.bottom, 8)
                 }
             } compactLeading: {
                 UploadIcon(phase: context.state.phase, size: 13)

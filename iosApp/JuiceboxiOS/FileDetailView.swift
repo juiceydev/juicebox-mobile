@@ -148,15 +148,14 @@ struct FileDetailView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                if model.isLocked(current) {
-                    badge("Locked", icon: "lock.fill", palette: palette)
-                }
-                if current.isEncrypted {
-                    badge("Encrypted", icon: "shield.lefthalf.filled", palette: palette)
-                }
-                if current.status == "ready" {
-                    badge("Ready", icon: "checkmark.seal", palette: palette)
+            if model.isLocked(current) || current.isEncrypted {
+                HStack(spacing: 8) {
+                    if model.isLocked(current) {
+                        badge("Locked", icon: "lock.fill", palette: palette)
+                    }
+                    if current.isEncrypted {
+                        badge("Encrypted", icon: "shield.lefthalf.filled", palette: palette)
+                    }
                 }
             }
         }

@@ -203,8 +203,6 @@ struct SettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 LabeledContent("Status", value: connectionLabel)
-            } footer: {
-                Text("Juicebox talks to this host for uploads and your library.")
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
@@ -284,8 +282,6 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } footer: {
-                Text("Auto picks the fastest node for this upload.")
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
@@ -736,12 +732,6 @@ struct SettingsView: View {
                 LabeledContent("Server", value: host)
                 LabeledContent("Library", value: "\(model.libraryCount) files")
                 LabeledContent("App", value: "v\(model.version)")
-            } footer: {
-                Text(
-                    "This session is an anonymous cookie stored on this device. " +
-                    "It keeps your library across restarts; forgetting it starts a fresh identity " +
-                    "and leaves existing links online."
-                )
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
