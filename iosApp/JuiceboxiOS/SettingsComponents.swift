@@ -78,7 +78,7 @@ struct SettingsNavRow: View {
 
 struct SettingsToggleRow: View {
     let title: String
-    var body: String?
+    var detail: String?
     let isOn: Bool
     let palette: JuicePalette
     let onChange: (Bool) -> Void
@@ -92,8 +92,8 @@ struct SettingsToggleRow: View {
                     Text(title)
                         .font(JuiceFont.body(16))
                         .foregroundStyle(palette.onSurface)
-                    if let body, !body.isEmpty {
-                        Text(body)
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
                             .font(JuiceFont.body(12))
                             .foregroundStyle(palette.onSurfaceVariant)
                     }
