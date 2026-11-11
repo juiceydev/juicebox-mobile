@@ -340,6 +340,7 @@ struct SettingsField: View {
 struct SettingsTonalButton: View {
     let title: String
     let icon: String
+    var expanded = false
     let palette: JuicePalette
     let action: () -> Void
 
@@ -353,6 +354,7 @@ struct SettingsTonalButton: View {
             }
             .foregroundStyle(palette.onSurface)
             .padding(.horizontal, 16)
+            .frame(maxWidth: expanded ? .infinity : nil)
             .frame(height: 40)
             .background(
                 palette.surfaceContainerHighest,

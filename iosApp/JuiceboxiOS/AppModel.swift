@@ -310,7 +310,7 @@ final class AppModel: ObservableObject {
                 }
                 self.report(error)
                 if error == nil {
-                    self.flash("Imported \(count?.intValue ?? 0) files")
+                    self.flash("Restored \(count?.intValue ?? 0) files")
                 }
                 continuation.resume(returning: error == nil ? count?.intValue : nil)
             }

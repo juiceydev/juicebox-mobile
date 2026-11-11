@@ -89,7 +89,7 @@ struct SettingsView: View {
     private func root(_ palette: JuicePalette) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Settings")
                         .font(JuiceFont.body(36))
                         .tracking(-0.8)
@@ -473,10 +473,20 @@ struct SettingsView: View {
                 }
                 HairlineDivider(palette: palette)
                 HStack(spacing: 8) {
-                    SettingsTonalButton(title: "Export", icon: "arrow.down.circle", palette: palette) {
+                    SettingsTonalButton(
+                        title: "Export",
+                        icon: "arrow.down.circle",
+                        expanded: true,
+                        palette: palette
+                    ) {
                         runExport()
                     }
-                    SettingsTonalButton(title: "Import", icon: "arrow.up.circle", palette: palette) {
+                    SettingsTonalButton(
+                        title: "Import",
+                        icon: "arrow.up.circle",
+                        expanded: true,
+                        palette: palette
+                    ) {
                         showImporter = true
                     }
                 }
