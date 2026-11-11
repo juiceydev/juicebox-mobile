@@ -1,6 +1,7 @@
 package dev.juicey.juicebox.core
 
 import dev.juicey.juicebox.core.model.AppSettings
+import dev.juicey.juicebox.core.model.HostValidation
 import dev.juicey.juicebox.core.model.LibraryFile
 import dev.juicey.juicebox.core.model.ServerConfig
 import dev.juicey.juicebox.core.model.SiteAnnouncement
@@ -154,6 +155,20 @@ class IosBridge(version: String) {
     }
 
     fun storageHosts(): List<StorageHost> = StorageHosts.official
+
+    fun communityHosts(completion: (List<StorageHost>?, String?) -> Unit) =
+        runWith(completion) {
+            core.api.communityHosts()
+        }
+
+    fun validateStorageHost(url: String, completion: (HostValidation?, String?) -> Unit) =
+        runWith(completion) {
+            core.validateHost(url)
+        }
+
+    fun rememberCustomHost(url: String) = update {
+        it.copy(customHosts = (it.customHosts + url).distinct().takeLast(8))
+    }
 
     fun uploadFile(
         path: String,

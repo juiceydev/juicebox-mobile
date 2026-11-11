@@ -343,16 +343,23 @@ struct SettingsTonalButton: View {
     let title: String
     let icon: String
     var expanded = false
+    var busy = false
     let palette: JuicePalette
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 7) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                Text(title)
-                    .font(JuiceFont.body(14, weight: .medium))
+                if busy {
+                    ProgressView()
+                        .tint(palette.onSurface)
+                        .scaleEffect(0.75)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                    Text(title)
+                        .font(JuiceFont.body(14, weight: .medium))
+                }
             }
             .foregroundStyle(palette.onSurface)
             .padding(.horizontal, 16)
@@ -364,6 +371,7 @@ struct SettingsTonalButton: View {
             )
         }
         .buttonStyle(.plain)
+        .disabled(busy)
     }
 }
 

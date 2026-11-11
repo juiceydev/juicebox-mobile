@@ -13,6 +13,9 @@ struct SettingsView: View {
     @State private var serverInput = ""
     @State private var serverBusy = false
     @State private var customHost = ""
+    @State private var customHostBusy = false
+    @State private var customHostMessage: String?
+    @State private var customHostOk = false
 
     @State private var passwordDraft = ""
     @State private var showPassword = false
@@ -231,8 +234,8 @@ struct SettingsView: View {
     // MARK: - Storage
 
     private var savedHosts: [String] {
-        let official = Set(model.storageHosts.map(\.url))
-        return model.settings.customHosts.filter { !official.contains($0) }
+        let known = Set((model.storageHosts + model.communityHosts).map(\.url))
+        return model.settings.customHosts.filter { !known.contains($0) }
     }
 
     private func storagePage(_ palette: JuicePalette) -> some View {
@@ -250,6 +253,37 @@ struct SettingsView: View {
                         palette: palette
                     ) {
                         model.setStorageHost(host.url)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                groupLabel("Community", palette)
+                if model.communityHosts.isEmpty {
+                    SettingsGroup(palette: palette) {
+                        Text(
+                            model.communityHostsLoaded
+                                ? "No community nodes listed yet."
+                                : "Checking for community nodes..."
+                        )
+                        .font(JuiceFont.body(12))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                    }
+                } else {
+                    SettingsGroup(palette: palette) {
+                        ForEach(Array(model.communityHosts.enumerated()), id: \.offset) { index, host in
+                            if index > 0 { HairlineDivider(palette: palette) }
+                            ChoiceOption(
+                                label: host.name,
+                                selected: selected == host.url,
+                                palette: palette
+                            ) {
+                                model.setStorageHost(host.url)
+                            }
+                        }
                     }
                 }
             }
@@ -285,26 +319,55 @@ struct SettingsView: View {
                         labelBackground: palette.surfaceContainerLow,
                         keyboard: .URL
                     )
-                    HStack {
-                        Spacer(minLength: 0)
-                        SettingsTonalButton(title: "Use node", icon: "cloud", palette: palette) {
-                            useCustomHost()
+                    HStack(spacing: 10) {
+                        if let customHostMessage {
+                            Text(customHostMessage)
+                                .font(JuiceFont.body(12))
+                                .foregroundStyle(customHostOk ? palette.primary : palette.error)
+                                .lineLimit(3)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Spacer(minLength: 0)
+                        }
+                        SettingsTonalButton(
+                            title: "Check",
+                            icon: "cloud",
+                            busy: customHostBusy,
+                            palette: palette
+                        ) {
+                            checkHost()
                         }
                     }
                 }
                 .padding(18)
             }
         }
+        .onAppear { model.loadCommunityHosts() }
     }
 
-    private func useCustomHost() {
+    private func checkHost() {
         var value = customHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
+        guard !value.isEmpty else {
+            model.setStorageHost(nil)
+            return
+        }
         if !value.contains("://") { value = "https://" + value }
         while value.hasSuffix("/") { value.removeLast() }
-        model.setStorageHost(value)
-        model.flash("Storage node saved")
-        customHost = ""
+        customHostBusy = true
+        customHostMessage = nil
+        Task {
+            let result = await model.validateHost(value)
+            customHostBusy = false
+            if let result, result.accepted {
+                model.saveCustomHost(value)
+                customHost = value
+                customHostMessage = "Online"
+                customHostOk = true
+            } else {
+                customHostMessage = "Not reachable"
+                customHostOk = false
+            }
+        }
     }
 
     // MARK: - Appearance

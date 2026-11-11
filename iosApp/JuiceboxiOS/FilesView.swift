@@ -114,9 +114,12 @@ struct FilesView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(palette.surfaceContainer, in: Capsule())
-        .overlay(Capsule().strokeBorder(palette.outline.opacity(0.4), lineWidth: 1))
+        .frame(height: 56)
+        .background(palette.background, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(palette.outline, lineWidth: 1)
+        )
         .padding(.horizontal, 20)
     }
 }

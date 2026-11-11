@@ -21,6 +21,8 @@ final class AppModel: ObservableObject {
     @Published var uploadProgress = 0.0
     @Published var lastUpload: LibraryFile?
     @Published var toast: String?
+    @Published var communityHosts: [StorageHost] = []
+    @Published var communityHostsLoaded = false
 
     private var subscriptions: [IosSubscription] = []
     private var toastTask: Task<Void, Never>?
@@ -291,6 +293,28 @@ final class AppModel: ObservableObject {
     var libraryCount: Int { files.count }
 
     var storageHosts: [StorageHost] { bridge.storageHosts() }
+
+    func loadCommunityHosts() {
+        guard !communityHostsLoaded else { return }
+        communityHostsLoaded = true
+        bridge.communityHosts { [weak self] hosts, _ in
+            guard let self else { return }
+            self.communityHosts = hosts ?? []
+        }
+    }
+
+    func validateHost(_ url: String) async -> HostValidation? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<HostValidation?, Never>) in
+            bridge.validateStorageHost(url: url) { result, error in
+                continuation.resume(returning: error == nil ? result : nil)
+            }
+        }
+    }
+
+    func saveCustomHost(_ url: String) {
+        bridge.setStorageHost(url: url)
+        bridge.rememberCustomHost(url: url)
+    }
 
     func exportLibrary(includeSession: Bool) async -> String? {
         await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
