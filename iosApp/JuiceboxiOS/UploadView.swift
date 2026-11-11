@@ -22,7 +22,6 @@ struct UploadView: View {
     @State private var container = "auto"
     @FocusState private var textFocused: Bool
     @FocusState private var linkFocused: Bool
-    @State private var viewportHeight: CGFloat = 0
 
     enum UploadMode: String, CaseIterable, Identifiable {
         case files = "Files"
@@ -49,131 +48,124 @@ struct UploadView: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Masthead()
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Masthead()
 
-                if !model.connection.connected && !model.connection.connecting {
-                    offlineNotice(palette)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                    if !model.connection.connected && !model.connection.connecting {
+                        offlineNotice(palette)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
-                if let announcement = model.announcement,
-                   let message = announcement.message,
-                   !message.isEmpty {
-                    AnnouncementBar(announcement: announcement, palette: palette)
-                        .padding(.horizontal, 16)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                    if let announcement = model.announcement,
+                       let message = announcement.message,
+                       !message.isEmpty {
+                        AnnouncementBar(announcement: announcement, palette: palette)
+                            .padding(.horizontal, 16)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
-                modePicker(palette)
-                retention(palette)
+                    modePicker(palette)
+                    retention(palette)
 
-                if mode == .files {
-                    Spacer(minLength: 0)
-                }
+                    if mode == .files {
+                        Spacer(minLength: 0)
+                    }
 
-                if mode == .text {
-                    textEditor(palette)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                } else if mode == .media {
-                    fetchForm(palette)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                } else {
-                    dropZone(palette)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                    if mode == .text {
+                        textEditor(palette)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    } else if mode == .media {
+                        fetchForm(palette)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    } else {
+                        dropZone(palette)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
 
-                if mode == .files {
-                    actionRow(palette)
-                        .transition(.opacity)
-                }
+                    if mode == .files {
+                        actionRow(palette)
+                            .transition(.opacity)
+                    }
 
-                if mode == .media {
-                    fetchRow(palette)
-                        .transition(.opacity)
-                }
+                    if mode == .media {
+                        fetchRow(palette)
+                            .transition(.opacity)
+                    }
 
-                if mode == .text {
-                    saveRow(palette)
-                        .transition(.opacity)
-                }
+                    if mode == .text {
+                        saveRow(palette)
+                            .transition(.opacity)
+                    }
 
-                if model.isUploading {
-                    progressCard(palette)
-                        .transition(
-                            .asymmetric(
-                                insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
-                                removal: .opacity
+                    if model.isUploading {
+                        progressCard(palette)
+                            .transition(
+                                .asymmetric(
+                                    insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
+                                    removal: .opacity
+                                )
                             )
-                        )
-                }
+                    }
 
-                if let file = model.lastUpload {
-                    resultCard(file, palette)
-                        .transition(
-                            .asymmetric(
-                                insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
-                                removal: .opacity
+                    if let file = model.lastUpload {
+                        resultCard(file, palette)
+                            .transition(
+                                .asymmetric(
+                                    insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
+                                    removal: .opacity
+                                )
                             )
-                        )
-                        .id(file.localId)
-                }
+                            .id(file.localId)
+                    }
 
-                if model.settings.lockUploads {
-                    lockNote(palette)
-                }
+                    if model.settings.lockUploads {
+                        lockNote(palette)
+                    }
 
-                if mode == .files {
-                    Spacer(minLength: 0)
+                    if mode == .files {
+                        Spacer(minLength: 0)
+                    }
+                }
+                .padding(.bottom, 28)
+                .frame(minHeight: proxy.size.height, alignment: .top)
+                .animation(.easeInOut(duration: 0.24), value: mode)
+                .animation(.snappy(duration: 0.3), value: model.connection.connected)
+                .animation(.spring(duration: 0.35), value: model.isUploading)
+                .animation(.spring(duration: 0.35), value: model.lastUpload?.localId)
+                .animation(.easeOut(duration: 0.24), value: model.announcement?.message)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(palette.background.ignoresSafeArea())
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.item],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    if let url = urls.first { model.stageAndUpload(url) }
+                case .failure:
+                    model.flash("Couldn't open that file")
                 }
             }
-            .padding(.bottom, 28)
-            .frame(minHeight: viewportHeight, alignment: .top)
-            .animation(.easeInOut(duration: 0.24), value: mode)
-            .animation(.snappy(duration: 0.3), value: model.connection.connected)
-            .animation(.spring(duration: 0.35), value: model.isUploading)
-            .animation(.spring(duration: 0.35), value: model.lastUpload?.localId)
-            .animation(.easeOut(duration: 0.24), value: model.announcement?.message)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .background(palette.background.ignoresSafeArea())
-        .background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: UploadViewportHeightKey.self,
-                    value: proxy.size.height
-                )
+            .onChange(of: photoItem) { _, item in
+                loadPhoto(item)
             }
-        }
-        .onPreferenceChange(UploadViewportHeightKey.self) { viewportHeight = $0 }
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [.item],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first { model.stageAndUpload(url) }
-            case .failure:
-                model.flash("Couldn't open that file")
+            .onChange(of: mode) { _, value in
+                textFocused = value == .text
+                linkFocused = value == .media
             }
-        }
-        .onChange(of: photoItem) { _, item in
-            loadPhoto(item)
-        }
-        .onChange(of: mode) { _, value in
-            textFocused = value == .text
-            linkFocused = value == .media
-        }
-        .onChange(of: model.config?.cobalt) { _, cobalt in
-            guard model.config != nil, cobalt != true, mode == .media else { return }
-            mode = .files
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { data in
-                let stamp = Int(Date().timeIntervalSince1970)
-                model.upload(data, filename: "photo-\(stamp).jpg", mime: "image/jpeg")
+            .onChange(of: model.config?.cobalt) { _, cobalt in
+                guard model.config != nil, cobalt != true, mode == .media else { return }
+                mode = .files
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker { data in
+                    let stamp = Int(Date().timeIntervalSince1970)
+                    model.upload(data, filename: "photo-\(stamp).jpg", mime: "image/jpeg")
+                }
             }
         }
     }
@@ -673,16 +665,6 @@ struct UploadView: View {
             }
         }
         photoItem = nil
-    }
-}
-
-/// The viewport height, so the Files stage can sit in the middle of the
-/// space the ScrollView actually shows.
-private struct UploadViewportHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
