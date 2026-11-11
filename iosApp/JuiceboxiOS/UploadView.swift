@@ -324,15 +324,17 @@ struct UploadView: View {
                         .font(JuiceFont.body(13, weight: .medium))
                         .foregroundStyle(palette.onSurfaceVariant)
                     Spacer(minLength: 8)
-                    PasteButton(payloadType: String.self) { values in
-                        guard let value = values.first?
+                    Button {
+                        guard let value = UIPasteboard.general.string?
                             .trimmingCharacters(in: .whitespacesAndNewlines),
                             !value.isEmpty else { return }
                         link = value
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                            .font(JuiceFont.body(13, weight: .medium))
                     }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .tint(palette.primary)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(palette.primary)
                 }
 
                 TextField(
@@ -349,7 +351,7 @@ struct UploadView: View {
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
             }
             .padding(14)
             .background(
