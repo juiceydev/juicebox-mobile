@@ -318,30 +318,11 @@ struct UploadView: View {
 
     private func fetchForm(_ palette: JuicePalette) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Link")
-                        .font(JuiceFont.body(13, weight: .medium))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                    Spacer(minLength: 8)
-                    Button {
-                        guard let value = UIPasteboard.general.string?
-                            .trimmingCharacters(in: .whitespacesAndNewlines),
-                            !value.isEmpty else { return }
-                        link = value
-                    } label: {
-                        Label("Paste", systemImage: "doc.on.clipboard")
-                            .font(JuiceFont.body(13, weight: .medium))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(palette.primary)
-                }
-
+            GroupBox {
                 TextField(
                     "Link",
                     text: $link,
-                    prompt: Text("YouTube, TikTok, X, SoundCloud…")
-                        .foregroundStyle(palette.onSurfaceVariant.opacity(0.75)),
+                    prompt: Text("YouTube, TikTok, X, SoundCloud…"),
                     axis: .vertical
                 )
                     .focused($linkFocused)
@@ -352,90 +333,81 @@ struct UploadView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+            } label: {
+                Text("Link")
+                    .font(JuiceFont.body(13, weight: .medium))
+                    .foregroundStyle(palette.onSurfaceVariant)
             }
-            .padding(14)
-            .background(
-                palette.surfaceContainerLow,
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(palette.outline.opacity(0.35), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
 
-            VStack(spacing: 0) {
-                Toggle("Audio only", isOn: $audioOnly)
-                    .font(JuiceFont.body(15))
-                    .foregroundStyle(palette.onSurface)
-                    .tint(palette.primary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+            GroupBox {
+                VStack(spacing: 0) {
+                    Toggle("Audio only", isOn: $audioOnly)
+                        .font(JuiceFont.body(15))
+                        .foregroundStyle(palette.onSurface)
+                        .tint(palette.primary)
+                        .padding(.vertical, 12)
 
-                Divider()
-                    .overlay(palette.outline.opacity(0.4))
-
-                if audioOnly {
-                    optionRow(
-                        "Better audio",
-                        selection: $betterAudio,
-                        options: [
-                            FetchOption(label: "Enhanced", value: true),
-                            FetchOption(label: "Standard", value: false),
-                        ],
-                        palette: palette
-                    )
                     Divider()
                         .overlay(palette.outline.opacity(0.4))
-                    optionRow(
-                        "Audio format",
-                        selection: $audioFormat,
-                        options: [
-                            FetchOption(label: "Best", value: "best"),
-                            FetchOption(label: "MP3", value: "mp3"),
-                            FetchOption(label: "Opus", value: "opus"),
-                            FetchOption(label: "OGG", value: "ogg"),
-                            FetchOption(label: "WAV", value: "wav"),
-                            FetchOption(label: "FLAC", value: "flac"),
-                        ],
-                        palette: palette
-                    )
-                } else {
-                    optionRow(
-                        "Quality",
-                        selection: $quality,
-                        options: [
-                            FetchOption(label: "Max", value: "max"),
-                            FetchOption(label: "2160p", value: "2160"),
-                            FetchOption(label: "1440p", value: "1440"),
-                            FetchOption(label: "1080p", value: "1080"),
-                            FetchOption(label: "720p", value: "720"),
-                            FetchOption(label: "480p", value: "480"),
-                            FetchOption(label: "360p", value: "360"),
-                        ],
-                        palette: palette
-                    )
-                    Divider()
-                        .overlay(palette.outline.opacity(0.4))
-                    optionRow(
-                        "Container",
-                        selection: $container,
-                        options: [
-                            FetchOption(label: "Auto", value: "auto"),
-                            FetchOption(label: "MP4", value: "mp4"),
-                            FetchOption(label: "WebM", value: "webm"),
-                            FetchOption(label: "MKV", value: "mkv"),
-                        ],
-                        palette: palette
-                    )
+
+                    if audioOnly {
+                        optionRow(
+                            "Better audio",
+                            selection: $betterAudio,
+                            options: [
+                                FetchOption(label: "Enhanced", value: true),
+                                FetchOption(label: "Standard", value: false),
+                            ],
+                            palette: palette
+                        )
+                        Divider()
+                            .overlay(palette.outline.opacity(0.4))
+                        optionRow(
+                            "Audio format",
+                            selection: $audioFormat,
+                            options: [
+                                FetchOption(label: "Best", value: "best"),
+                                FetchOption(label: "MP3", value: "mp3"),
+                                FetchOption(label: "Opus", value: "opus"),
+                                FetchOption(label: "OGG", value: "ogg"),
+                                FetchOption(label: "WAV", value: "wav"),
+                                FetchOption(label: "FLAC", value: "flac"),
+                            ],
+                            palette: palette
+                        )
+                    } else {
+                        optionRow(
+                            "Quality",
+                            selection: $quality,
+                            options: [
+                                FetchOption(label: "Max", value: "max"),
+                                FetchOption(label: "2160p", value: "2160"),
+                                FetchOption(label: "1440p", value: "1440"),
+                                FetchOption(label: "1080p", value: "1080"),
+                                FetchOption(label: "720p", value: "720"),
+                                FetchOption(label: "480p", value: "480"),
+                                FetchOption(label: "360p", value: "360"),
+                            ],
+                            palette: palette
+                        )
+                        Divider()
+                            .overlay(palette.outline.opacity(0.4))
+                        optionRow(
+                            "Container",
+                            selection: $container,
+                            options: [
+                                FetchOption(label: "Auto", value: "auto"),
+                                FetchOption(label: "MP4", value: "mp4"),
+                                FetchOption(label: "WebM", value: "webm"),
+                                FetchOption(label: "MKV", value: "mkv"),
+                            ],
+                            palette: palette
+                        )
+                    }
                 }
             }
-            .background(
-                palette.surfaceContainerLow,
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
-            .padding(.horizontal, 20)
         }
+        .padding(.horizontal, 20)
     }
 
     private func optionRow<Value: Hashable>(
@@ -457,7 +429,6 @@ struct UploadView: View {
             .pickerStyle(.menu)
             .tint(palette.primary)
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
 
@@ -519,7 +490,6 @@ struct UploadView: View {
             }
         }
         .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
         .controlSize(.regular)
         .tint(palette.primary)
         .padding(.horizontal, 20)
