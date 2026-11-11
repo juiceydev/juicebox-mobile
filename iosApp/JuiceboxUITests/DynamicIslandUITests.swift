@@ -23,6 +23,9 @@ final class DynamicIslandUITests: XCTestCase {
         // Let the Live Activity register and take its first progress update.
         sleep(4)
         allowLiveActivities()
+        // The request may have been waiting on the permission prompt, so give
+        // the compact island a moment to pick it up before the in-app capture.
+        sleep(2)
         snap("dynamic-island-in-app")
 
         XCUIDevice.shared.press(.home)
