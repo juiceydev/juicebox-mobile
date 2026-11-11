@@ -197,15 +197,16 @@ struct ChoiceOption: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 6) {
                 RadioDot(selected: selected, palette: palette)
+                    .frame(width: 48, height: 48)
                 Text(label)
                     .font(JuiceFont.body(16))
                     .foregroundStyle(palette.onSurface)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 12)
+            .padding(.vertical, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -246,6 +247,7 @@ struct ThemeChoiceRow: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 RadioDot(selected: selected, palette: palette)
+                    .frame(width: 48, height: 48)
                 Text(theme.label)
                     .font(JuiceFont.body(16))
                     .foregroundStyle(palette.onSurface)
@@ -259,7 +261,7 @@ struct ThemeChoiceRow: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 10)
+            .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

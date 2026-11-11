@@ -66,47 +66,10 @@ struct Masthead: View {
                 .scaledToFit()
                 .frame(width: 42, height: 42)
             TitleWordmark(size: 26, color: palette.primary)
-            Spacer(minLength: 8)
-            Button {
-                Task { await model.connect() }
-            } label: {
-                ConnectionBadge(
-                    text: model.statusText,
-                    state: model.connection,
-                    palette: palette
-                )
-            }
-            .buttonStyle(.plain)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.top, 6)
-    }
-}
-
-struct ConnectionBadge: View {
-    let text: String
-    let state: ConnectionState
-    let palette: JuicePalette
-
-    private var dot: Color {
-        if state.connecting { return palette.primary }
-        if state.connected { return palette.success }
-        return palette.error
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(dot)
-                .frame(width: 7, height: 7)
-            Text(text)
-                .font(JuiceFont.mono(11, weight: .semibold))
-                .lineLimit(1)
-        }
-        .foregroundStyle(palette.onSurfaceVariant)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(palette.surfaceContainerHigh, in: Capsule())
     }
 }
 

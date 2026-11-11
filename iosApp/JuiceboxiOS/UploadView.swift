@@ -29,6 +29,10 @@ struct UploadView: View {
             VStack(alignment: .leading, spacing: 18) {
                 Masthead()
 
+                if !model.connection.connected && !model.connection.connecting {
+                    offlineNotice(palette)
+                }
+
                 if let announcement = model.announcement,
                    let message = announcement.message,
                    !message.isEmpty {
@@ -93,6 +97,42 @@ struct UploadView: View {
     }
 
     // MARK: - Sections
+
+    private func offlineNotice(_ palette: JuicePalette) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(palette.error)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Server unreachable")
+                    .font(JuiceFont.body(14, weight: .semibold))
+                    .foregroundStyle(palette.onSurface)
+                Text(model.connection.error ?? "Check the server in Settings")
+                    .font(JuiceFont.body(12))
+                    .foregroundStyle(palette.onSurfaceVariant)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            Button {
+                Task { await model.connect() }
+            } label: {
+                Text("Retry")
+                    .font(JuiceFont.body(14, weight: .medium))
+                    .foregroundStyle(palette.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            palette.surfaceContainerLow,
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .padding(.horizontal, 20)
+    }
 
     private func modePicker(_ palette: JuicePalette) -> some View {
         HStack(spacing: 12) {

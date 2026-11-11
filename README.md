@@ -43,7 +43,8 @@ The Gradle config picks it up automatically when present.
 
 ## iOS
 
-Requirements: macOS with Xcode 16 and JDK 21, plus `xcodegen`.
+Requirements: macOS with Xcode 16 or newer and JDK 21, plus `xcodegen`. The iOS
+workflow pins Xcode 26.3 for the iOS 26 SDK.
 
 ```sh
 cd iosApp
@@ -60,10 +61,14 @@ pre-build step, so the shared framework is always current. Deployment target is
 iOS 17 and the bundle id is `dev.juicey.juicebox`.
 
 `.github/workflows/ios.yml` builds the simulator app on a macOS runner and
-publishes `Juicebox-simulator.zip` as an artifact. `.github/workflows/ios-device.yml`
-builds an unsigned device IPA for sideloading; see
-[`docs/test-on-device.md`](docs/test-on-device.md) for signing it with a free
-Apple ID. Device and TestFlight builds
+publishes `Juicebox-simulator.zip` as an artifact. The same workflow launches
+the app on a simulator and uploads light and dark screenshots of Upload, Files,
+Settings and its main subpages as `Juicebox-screenshots`; the capture script
+lives at `iosApp/scripts/capture-screenshots.sh` and starts each run on the
+right tab or settings page with launch environment variables.
+`.github/workflows/ios-device.yml` builds an unsigned device IPA for
+sideloading; see [`docs/test-on-device.md`](docs/test-on-device.md) for signing
+it with a free Apple ID. Device and TestFlight builds
 need an Apple Developer team and a signing profile in the repository secrets;
 none are configured yet.
 
