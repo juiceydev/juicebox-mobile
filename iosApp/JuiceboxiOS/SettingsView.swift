@@ -85,11 +85,6 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             root(palette)
                 .navigationTitle("Settings")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        TitleWordmark(size: 14, color: palette.primary)
-                    }
-                }
                 .navigationDestination(for: SettingsPage.self) { page in
                     pageBody(page, palette)
                         .navigationTitle(page.title)
@@ -132,6 +127,15 @@ struct SettingsView: View {
 
     private func root(_ palette: JuicePalette) -> some View {
         settingsList(palette) {
+            Section {
+                TitleWordmark(size: 16, color: palette.primary)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(
+                        EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0)
+                    )
+                    .listRowSeparator(.hidden)
+            }
+
             Section {
                 ForEach(
                     [SettingsPage.server, .storage, .appearance, .uploads, .links, .library, .about],
@@ -198,8 +202,6 @@ struct SettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 LabeledContent("Status", value: connectionLabel)
-            } header: {
-                Text("Server")
             } footer: {
                 Text("Juicebox talks to this host for uploads and your library.")
             }
@@ -281,8 +283,6 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } header: {
-                Text("Storage")
             } footer: {
                 Text("Auto picks the fastest node for this upload.")
             }
@@ -322,7 +322,7 @@ struct SettingsView: View {
             }
 
             Section {
-                TextField("https://f-eu3.juicey.dev", text: $customHost)
+                TextField("Node URL", text: $customHost)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -483,6 +483,19 @@ struct SettingsView: View {
                             .foregroundStyle(palette.outline)
                     }
                 }
+                .alert("Shared links", isPresented: presented(.share)) {
+                    Button("Fetch video") {
+                        model.setShareLinkMode("fetch")
+                        dialog = nil
+                    }
+                    Button("Upload as text") {
+                        model.setShareLinkMode("text")
+                        dialog = nil
+                    }
+                    Button("Cancel", role: .cancel) { dialog = nil }
+                } message: {
+                    Text("What a link shared into Juicebox becomes on this phone.")
+                }
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
@@ -512,21 +525,6 @@ struct SettingsView: View {
                 }
             }
             .listRowBackground(ListRowSurface(palette: palette))
-        }
-        .confirmationDialog(
-            "Shared links",
-            isPresented: presented(.share),
-            titleVisibility: .visible
-        ) {
-            Button("Fetch video") {
-                model.setShareLinkMode("fetch")
-                dialog = nil
-            }
-            Button("Upload as text") {
-                model.setShareLinkMode("text")
-                dialog = nil
-            }
-            Button("Cancel", role: .cancel) { dialog = nil }
         }
         .alert("Upload password", isPresented: presented(.password)) {
             SecureField("Password", text: $passwordDraft)
@@ -566,8 +564,6 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } header: {
-                Text("Default link")
             } footer: {
                 Text("Which link Juicebox copies after an upload.")
             }

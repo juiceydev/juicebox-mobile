@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct UploadView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.juiceGlass) private var glass
 
     @State private var mode: UploadMode = .files
     @State private var showFileImporter = false
@@ -262,10 +263,7 @@ struct UploadView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 210)
-        .background(
-            palette.surfaceContainerLow,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
+        .background { dropZoneSurface(palette) }
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(
@@ -277,22 +275,44 @@ struct UploadView: View {
         .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
+    /// The drop zone is a card, so the Liquid Glass setting swaps its solid
+    /// surface for the system glass material.
+    @ViewBuilder
+    private func dropZoneSurface(_ palette: JuicePalette) -> some View {
+        if glass, #available(iOS 26.0, *) {
+            Color.clear
+                .glassEffect(
+                    .regular,
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+                )
+        } else {
+            palette.surfaceContainerLow
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+    }
+
     private func actionRow(_ palette: JuicePalette) -> some View {
         HStack(spacing: 10) {
             Button {
                 showFileImporter = true
             } label: {
                 Label("Files", systemImage: "folder")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
             }
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                 Label("Photos", systemImage: "photo.on.rectangle")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
             }
             Button {
                 openCamera()
             } label: {
                 Label("Camera", systemImage: "camera")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
             }
         }
