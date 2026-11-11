@@ -86,7 +86,15 @@ shoot() {
   # Give SwiftUI a beat to settle, plus the first library fetch.
   sleep 4
   xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name" >/dev/null 2>&1
-  echo "  $name"
+  # A capture of the plain launch screen compresses to well under 100 KB, so a
+  # small file means the first frame had not arrived yet. Take it again.
+  if [[ "$(stat -f%z "$OUT/$name")" -lt 100000 ]]; then
+    sleep 3
+    xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name" >/dev/null 2>&1
+    echo "  $name (retried)"
+  else
+    echo "  $name"
+  fi
 }
 
 for appearance in light dark; do
