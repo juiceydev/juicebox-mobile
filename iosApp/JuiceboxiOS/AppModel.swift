@@ -26,9 +26,8 @@ final class AppModel: ObservableObject {
     private var toastTask: Task<Void, Never>?
 
     init() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        let bridge = IosBridge(version: version)
-        self.version = version
+        let bridge = JuiceboxApp.bridge
+        self.version = JuiceboxApp.version
         self.bridge = bridge
         self.settings = bridge.currentSettings()
         self.files = bridge.currentFiles()
@@ -183,12 +182,14 @@ final class AppModel: ObservableObject {
             flash("Nothing to save")
             return
         }
-        guard beginUpload() else { return }
+        guard beginUpload(filename: "paste.txt", size: Int64(text.utf8.count)) else { return }
         bridge.saveText(
             text: text,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                self?.uploadProgress = value.doubleValue
+                let progress = value.doubleValue
+                self?.uploadProgress = progress
+                LiveUploadActivity.shared.report(progress: progress)
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
@@ -203,14 +204,16 @@ final class AppModel: ObservableObject {
             flash("Too large — this server allows \(JuiceFormat.bytes(max))")
             return
         }
-        guard beginUpload() else { return }
+        guard beginUpload(filename: filename, size: size) else { return }
         bridge.uploadFile(
             path: path,
             filename: filename,
             mimeType: mime,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                self?.uploadProgress = value.doubleValue
+                let progress = value.doubleValue
+                self?.uploadProgress = progress
+                LiveUploadActivity.shared.report(progress: progress)
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
@@ -218,7 +221,7 @@ final class AppModel: ObservableObject {
         )
     }
 
-    private func beginUpload() -> Bool {
+    private func beginUpload(filename: String, size: Int64) -> Bool {
         if isUploading {
             flash("An upload is already running")
             return false
@@ -226,6 +229,7 @@ final class AppModel: ObservableObject {
         isUploading = true
         uploadProgress = 0
         lastUpload = nil
+        LiveUploadActivity.shared.start(filename: filename, totalBytes: size, server: serverHost)
         return true
     }
 
@@ -234,11 +238,15 @@ final class AppModel: ObservableObject {
         if let file {
             uploadProgress = 1
             lastUpload = file
+            let shareLink = link(file, variant: settings.linkVariant)
             if settings.autoCopy {
-                UIPasteboard.general.string = link(file, variant: settings.linkVariant)
+                UIPasteboard.general.string = shareLink
             }
+            LiveUploadActivity.shared.finish(link: shareLink)
             haptic()
             flash("Uploaded")
+        } else {
+            LiveUploadActivity.shared.fail()
         }
         report(error)
     }
@@ -294,6 +302,7 @@ final class AppModel: ObservableObject {
     func setQuickLink(_ value: Bool) { bridge.setQuickLink(value: value) }
     func setAutoCopy(_ value: Bool) { bridge.setAutoCopy(value: value) }
     func setHaptics(_ value: Bool) { bridge.setHaptics(value: value) }
+    func setLiquidGlass(_ value: Bool) { bridge.setLiquidGlass(value: value) }
     func setLockUploads(_ value: Bool) { bridge.setLockUploads(value: value) }
     func setUploadPassword(_ value: String) { bridge.setUploadPassword(value: value) }
     func setLinkVariant(_ value: String) { bridge.setLinkVariant(value: value) }

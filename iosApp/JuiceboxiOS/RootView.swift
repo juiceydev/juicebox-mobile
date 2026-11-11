@@ -22,6 +22,7 @@ struct RootView: View {
         }
         .background(palette.background.ignoresSafeArea())
         .tint(palette.primary)
+        .environment(\.juiceGlass, model.settings.liquidGlass)
         .overlay(alignment: .top) {
             if let toast = model.toast {
                 ToastView(message: toast, palette: palette)

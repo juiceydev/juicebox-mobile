@@ -205,6 +205,8 @@ class IosBridge(version: String) {
 
     fun setHaptics(value: Boolean) = update { it.copy(haptics = value) }
 
+    fun setLiquidGlass(value: Boolean) = update { it.copy(liquidGlass = value) }
+
     fun setLinkVariant(value: String) = update { it.copy(linkVariant = value) }
 
     fun setShareLinkMode(value: String) = update { it.copy(shareLinkMode = value) }

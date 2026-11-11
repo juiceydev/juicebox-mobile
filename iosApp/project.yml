@@ -4,7 +4,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-  xcodeVersion: "16.0"
+  xcodeVersion: "26.0"
 
 settings:
   base:
@@ -18,6 +18,10 @@ targets:
     platform: iOS
     sources:
       - path: JuiceboxiOS
+      - path: Shared
+    dependencies:
+      - target: JuiceboxWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.juicey.juicebox
@@ -30,6 +34,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
@@ -41,3 +46,20 @@ targets:
         script: |
           cd "$SRCROOT/.."
           ./gradlew :core:embedAndSignAppleFrameworkForXcode
+
+  JuiceboxWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: JuiceboxWidgets
+      - path: Shared
+      - path: JuiceboxiOS/Theme.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.juicey.juicebox.widgets
+        PRODUCT_NAME: JuiceboxWidgets
+        INFOPLIST_FILE: JuiceboxWidgets/Info.plist
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../../Frameworks"

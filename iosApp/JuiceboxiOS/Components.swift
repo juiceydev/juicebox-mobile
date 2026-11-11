@@ -1,6 +1,43 @@
 import JuiceboxCore
 import SwiftUI
 
+// MARK: - Liquid Glass
+
+private struct JuiceGlassEnabledKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Set from the Liquid Glass setting; ignored below iOS 26.
+    var juiceGlass: Bool {
+        get { self[JuiceGlassEnabledKey.self] }
+        set { self[JuiceGlassEnabledKey.self] = newValue }
+    }
+}
+
+private struct JuiceGlassModifier: ViewModifier {
+    let enabled: Bool
+    let radius: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled, #available(iOS 26.0, *) {
+            content.glassEffect(
+                .regular,
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+            )
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func juiceGlass(enabled: Bool, radius: CGFloat = 22) -> some View {
+        modifier(JuiceGlassModifier(enabled: enabled, radius: radius))
+    }
+}
+
 enum AppTab: Hashable {
     case upload
     case files
@@ -104,6 +141,8 @@ struct JuiceTabBar: View {
     let palette: JuicePalette
     var onSelect: (AppTab) -> Void = { _ in }
 
+    @Environment(\.juiceGlass) private var glass
+
     var body: some View {
         HStack(spacing: 6) {
             tab(.upload, icon: "arrow.up.doc", title: "Upload")
@@ -113,10 +152,15 @@ struct JuiceTabBar: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 4)
-        .background(palette.background)
+        .background {
+            if !glass {
+                palette.background
+            }
+        }
+        .juiceGlass(enabled: glass, radius: 0)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(palette.outline.opacity(0.25))
+                .fill(palette.outline.opacity(glass ? 0.12 : 0.25))
                 .frame(height: 1)
         }
     }
@@ -148,16 +192,20 @@ struct JuiceTabBar: View {
 
 struct SectionCard<Content: View>: View {
     let palette: JuicePalette
+    @Environment(\.juiceGlass) private var glass
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
         }
-        .background(
-            palette.surfaceContainer,
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
+        .background {
+            if !glass {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(palette.surfaceContainer)
+            }
+        }
+        .juiceGlass(enabled: glass)
     }
 }
 

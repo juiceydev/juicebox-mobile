@@ -86,6 +86,8 @@ data class AppSettings(
     val shareLinkMode: String = ShareLinkMode.FETCH,
     val haptics: Boolean = true,
     val sounds: Boolean = false,
+    /** iOS 26 glass surfaces; ignored on Android and older iOS builds. */
+    val liquidGlass: Boolean = true,
     val reduceMotion: Boolean = false,
     /** Juicebox keeps the brand palette; you follows the wallpaper. */
     val themeMode: String = ThemeMode.JUICEBOX,

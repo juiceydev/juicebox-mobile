@@ -119,6 +119,29 @@ struct SettingsView: View {
                     .foregroundStyle(palette.onSurfaceVariant)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 14)
+
+                if #available(iOS 26.0, *) {
+                    Divider()
+                        .overlay(palette.outline.opacity(0.25))
+                        .padding(.leading, 56)
+                    toggleRow(
+                        "Liquid Glass",
+                        detail: "Translucent cards and tab bar (iOS 26).",
+                        icon: "sparkles",
+                        isOn: Binding(
+                            get: { model.settings.liquidGlass },
+                            set: { model.setLiquidGlass($0) }
+                        ),
+                        palette: palette
+                    )
+                    if !model.settings.liquidGlass {
+                        Text("Solid surfaces. The setting is ignored on iOS 17-25.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(palette.onSurfaceVariant)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 12)
+                    }
+                }
             }
         }
     }
