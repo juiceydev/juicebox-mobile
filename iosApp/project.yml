@@ -58,6 +58,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.juicey.juicebox.widgets
         PRODUCT_NAME: JuiceboxWidgets
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: JuiceboxWidgets/Info.plist
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
