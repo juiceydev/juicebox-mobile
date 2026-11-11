@@ -1,6 +1,7 @@
 import JuiceboxCore
 import PhotosUI
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct UploadView: View {
@@ -9,6 +10,7 @@ struct UploadView: View {
 
     @State private var mode: UploadMode = .files
     @State private var showFileImporter = false
+    @State private var showCamera = false
     @State private var photoItem: PhotosPickerItem?
     @State private var text = ""
     @FocusState private var textFocused: Bool
@@ -43,7 +45,9 @@ struct UploadView: View {
                     dropZone(palette)
                 }
 
-                actionRow(palette)
+                if mode == .files {
+                    actionRow(palette)
+                }
 
                 if mode == .text {
                     saveRow(palette)
@@ -80,6 +84,12 @@ struct UploadView: View {
         .onChange(of: photoItem) { _, item in
             loadPhoto(item)
         }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { data in
+                let stamp = Int(Date().timeIntervalSince1970)
+                model.upload(data, filename: "photo-\(stamp).jpg", mime: "image/jpeg")
+            }
+        }
     }
 
     // MARK: - Sections
@@ -93,10 +103,10 @@ struct UploadView: View {
                 } label: {
                     VStack(spacing: 6) {
                         Text(item.rawValue)
-                            .font(JuiceFont.body(14, weight: .medium))
+                            .font(JuiceFont.body(14, weight: mode == item ? .semibold : .medium))
                         Capsule()
                             .fill(mode == item ? palette.primary : Color.clear)
-                            .frame(height: 3)
+                            .frame(width: 48, height: 3)
                     }
                     .foregroundStyle(mode == item ? palette.primary : palette.onSurfaceVariant)
                     .frame(maxWidth: .infinity)
@@ -143,18 +153,21 @@ struct UploadView: View {
                 .font(.system(size: 36, weight: .regular))
                 .foregroundStyle(palette.primary)
             Text(title)
-                .font(JuiceFont.body(20, weight: .semibold))
+                .font(JuiceFont.body(22, weight: .semibold))
                 .foregroundStyle(palette.onSurface)
             Text("Tap to browse")
-                .font(JuiceFont.body(13))
+                .font(JuiceFont.body(14))
                 .foregroundStyle(palette.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 210)
-        .background(
-            palette.onSurface.opacity(0.02),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
+        .background {
+            ZStack {
+                palette.surfaceContainerLow
+                DropZoneStripes(color: palette.primary.opacity(0.02))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(
@@ -171,23 +184,35 @@ struct UploadView: View {
                 showFileImporter = true
             }
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
-                HStack(spacing: 7) {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("Media")
-                        .font(JuiceFont.body(14, weight: .medium))
-                }
-                .foregroundStyle(palette.onSurface)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(palette.surfaceContainerHigh, in: Capsule())
+                pickerLabel(icon: "photo.on.rectangle", title: "Photos", palette: palette)
             }
             .buttonStyle(.plain)
-            ActionChip(icon: "text.alignleft", title: "Text", palette: palette) {
-                mode = .text
+            ActionChip(icon: "camera", title: "Camera", palette: palette) {
+                openCamera()
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    private func pickerLabel(_ icon: String, title: String, palette: JuicePalette) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+            Text(title)
+                .font(JuiceFont.body(14, weight: .semibold))
+        }
+        .foregroundStyle(palette.onSurface)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 13)
+        .background(palette.surfaceContainerHigh, in: Capsule())
+    }
+
+    private func openCamera() {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            model.flash("No camera on this device")
+            return
+        }
+        showCamera = true
     }
 
     private func textEditor(_ palette: JuicePalette) -> some View {
@@ -364,5 +389,72 @@ struct UploadView: View {
             }
         }
         photoItem = nil
+    }
+}
+
+/// The site's -45 degree stripes, painted faintly behind the drop zone.
+private struct DropZoneStripes: View {
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            let period: CGFloat = 15
+            let band = period * 0.42
+            let span = (size.width + size.height) * 1.6
+            context.translateBy(x: size.width / 2, y: size.height / 2)
+            context.rotate(by: .degrees(-45))
+            context.translateBy(x: -size.width / 2, y: -size.height / 2)
+            var x = -span
+            while x < span {
+                let rect = CGRect(x: x, y: -span, width: band, height: span * 2)
+                context.fill(Path(rect), with: .color(color))
+                x += period
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+}
+
+/// The Android app's Camera picker: the system camera, handed back as JPEG.
+struct CameraPicker: UIViewControllerRepresentable {
+    let onCapture: (Data) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        private let parent: CameraPicker
+
+        init(_ parent: CameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage,
+               let data = image.jpegData(compressionQuality: 0.9) {
+                parent.onCapture(data)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }

@@ -82,26 +82,14 @@ struct FilesView: View {
 
     private func header(_ palette: JuicePalette) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Files")
-                    .font(JuiceFont.body(38, weight: .bold))
-                    .foregroundStyle(palette.onSurface)
-                Spacer()
-                Button {
-                    Task { await model.connect() }
-                } label: {
-                    ConnectionBadge(
-                        text: model.statusText,
-                        state: model.connection,
-                        palette: palette
-                    )
-                }
-                .buttonStyle(.plain)
-            }
+            Text("Files")
+                .font(JuiceFont.body(36))
+                .foregroundStyle(palette.onSurface)
             Text("\(model.files.count) files · \(JuiceFormat.bytes(totalBytes))")
                 .font(JuiceFont.body(13))
                 .foregroundStyle(palette.onSurfaceVariant)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.top, 14)
     }

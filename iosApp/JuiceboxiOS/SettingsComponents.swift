@@ -16,12 +16,12 @@ struct SettingsGroup<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if !glass {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(palette.surfaceContainerLow)
             }
         }
-        .juiceGlass(enabled: glass, radius: 16)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .juiceGlass(enabled: glass, radius: 24)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
