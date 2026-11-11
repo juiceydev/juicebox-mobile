@@ -5,14 +5,16 @@ Kotlin Multiplatform core.
 
 ## Modules
 
-| Module  | What it is                                                        |
-| ------- | ----------------------------------------------------------------- |
-| `core`  | Shared logic: API client, sessions, settings, library, upload engine |
-| `app`   | Android app: Jetpack Compose UI, WorkManager uploads, share target |
+| Module    | What it is                                                          |
+| --------- | ------------------------------------------------------------------- |
+| `core`    | Shared logic: API client, sessions, settings, library, upload engine |
+| `app`     | Android app: Jetpack Compose UI, WorkManager uploads, share target   |
+| `iosApp`  | iOS app: SwiftUI, generated from `project.yml` by XcodeGen           |
 
-The core has no Android or Java imports in `commonMain`; platform details
-(HTTP engine, clock, key-value storage, file access) are injected. iOS targets
-and the SwiftUI app live alongside `app` once the Apple toolchain is wired up.
+The core has no Android, Java or Apple imports in `commonMain`; platform
+details (HTTP engine, clock, key-value storage, file access) are injected.
+Android talks to the core directly; iOS goes through `IosBridge`, a small
+callback-based surface in `iosMain` so Swift never touches coroutine flows.
 
 ## Android
 
@@ -39,11 +41,40 @@ To produce a signed APK, copy `keystore.properties.example` to
 `keystore.properties` (git-ignored) and fill in a keystore outside the repo.
 The Gradle config picks it up automatically when present.
 
+## iOS
+
+Requirements: macOS with Xcode 16 and JDK 21, plus `xcodegen`.
+
+```sh
+cd iosApp
+xcodegen generate
+xcodebuild -project Juicebox.xcodeproj -scheme Juicebox \
+  -configuration Debug -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Juicebox.app
+```
+
+The Xcode target runs `./gradlew :core:embedAndSignAppleFrameworkForXcode` as a
+pre-build step, so the shared framework is always current. Deployment target is
+iOS 17 and the bundle id is `dev.juicey.juicebox`.
+
+`.github/workflows/ios.yml` builds the simulator app on a macOS runner and
+publishes `Juicebox-simulator.zip` as an artifact. Device and TestFlight builds
+need an Apple Developer team and a signing profile in the repository secrets;
+none are configured yet.
+
+Themes are the five static palettes (Juicebox, Violet, Ocean, Forest, Rose);
+Material You is Android-only. Uploads run in the foreground for now, and
+picking files happens in-app because a share extension would need App Groups
+from a paid Apple Developer account.
+
 ## Versioning
 
-`versionCode` and `versionName` live in `app/build.gradle.kts`. The version is
-also sent to the server in the user agent and `X-Juicebox-Client` header, so
-upload statistics can tell platforms apart.
+`versionCode` and `versionName` live in `app/build.gradle.kts`; the iOS
+`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` live in `iosApp/project.yml`.
+The version is also sent to the server in the user agent and `X-Juicebox-Client`
+header, so upload statistics can tell platforms apart.
 
 ## Tests
 
@@ -52,4 +83,5 @@ upload statistics can tell platforms apart.
 ```
 
 Shared tests run on the JVM and cover transport planning, retries, cookies and
-the upload multipart writer.
+the upload multipart writer. `:core:compileKotlinIosSimulatorArm64` checks the
+Apple side of the core without needing a Mac (linking needs one).
