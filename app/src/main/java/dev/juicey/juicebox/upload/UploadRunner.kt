@@ -11,9 +11,9 @@ import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import dev.juicey.juicebox.core.JuiceboxCore
 import dev.juicey.juicebox.core.friendlyMessage
+import dev.juicey.juicebox.core.upload.FileUploadSource
 import dev.juicey.juicebox.core.upload.UploadProgress
 import dev.juicey.juicebox.core.upload.UploadRequest
-import dev.juicey.juicebox.core.upload.FileUploadSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,6 +82,7 @@ class UploadRunner(
         }
 
         val source = FileUploadSource.of(
+            fileSystem = FileSystem.SYSTEM,
             path = path,
             filename = task.filename.ifBlank { localFile.name },
             mimeType = task.mimeType.ifBlank { "application/octet-stream" },

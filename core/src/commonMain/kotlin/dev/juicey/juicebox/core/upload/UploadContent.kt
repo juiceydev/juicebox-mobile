@@ -23,7 +23,8 @@ class ByteRangeContent(
     override suspend fun writeTo(channel: ByteWriteChannel) {
         var sent = 0L
         val buffer = ByteArray(BUFFER_SIZE)
-        source.open(offset).buffer().use { input ->
+        val input = source.open(offset).buffer()
+        try {
             while (sent < length) {
                 val want = minOf(BUFFER_SIZE.toLong(), length - sent).toInt()
                 val read = input.read(buffer, 0, want)
@@ -32,6 +33,8 @@ class ByteRangeContent(
                 sent += read
                 onProgress(sent)
             }
+        } finally {
+            input.close()
         }
         if (sent != length) {
             throw IllegalStateException("Source ended at $sent of $length bytes")
@@ -75,7 +78,8 @@ class MultipartUploadContent(
 
         var sent = 0L
         val buffer = ByteArray(BUFFER_SIZE)
-        file.open(0).buffer().use { input ->
+        val input = file.open(0).buffer()
+        try {
             while (true) {
                 val read = input.read(buffer, 0, BUFFER_SIZE)
                 if (read == -1) break
@@ -84,6 +88,8 @@ class MultipartUploadContent(
                 onFileBytes(sent)
                 onProgress(prefix.size + sent)
             }
+        } finally {
+            input.close()
         }
         if (sent != file.size) {
             throw IllegalStateException("Source ended at $sent of ${file.size} bytes")

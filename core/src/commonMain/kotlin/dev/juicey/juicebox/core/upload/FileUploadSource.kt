@@ -5,10 +5,14 @@ import okio.Path
 import okio.Path.Companion.toPath
 import okio.Source
 import okio.buffer
-import okio.source
 
-/** A file on local storage: upload staging copies, text pastes, iOS temp files. */
+/**
+ * A file on local storage: upload staging copies, text pastes, iOS temp files.
+ * The [FileSystem] is passed in because `FileSystem.SYSTEM` only exists per
+ * platform, not in common metadata.
+ */
 class FileUploadSource(
+    private val fileSystem: FileSystem,
     private val path: Path,
     override val filename: String,
     override val mimeType: String,
@@ -16,16 +20,23 @@ class FileUploadSource(
 ) : UploadSource {
 
     override fun open(offset: Long): Source =
-        FileSystem.SYSTEM.openReadOnly(path).source(offset).buffer()
+        fileSystem.openReadOnly(path).source(offset).buffer()
 
     companion object {
         fun of(
+            fileSystem: FileSystem,
             path: String,
             filename: String,
             mimeType: String,
         ): FileUploadSource {
             val p = path.toPath()
-            return FileUploadSource(p, filename, mimeType, FileSystem.SYSTEM.metadata(p).size ?: 0L)
+            return FileUploadSource(
+                fileSystem = fileSystem,
+                path = p,
+                filename = filename,
+                mimeType = mimeType,
+                size = fileSystem.metadata(p).size ?: 0L,
+            )
         }
     }
 }
