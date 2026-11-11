@@ -77,11 +77,11 @@ struct FileDetailView: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(current.filename.isEmpty ? "Untitled" : current.filename)
-                        .font(.system(size: 20, weight: .bold))
+                        .font(JuiceFont.body(20, weight: .bold))
                         .foregroundStyle(palette.onSurface)
                         .lineLimit(2)
                     Text("\(JuiceFormat.bytes(current.sizeBytes)) · \(JuiceFormat.mimeLabel(current.mimeType, filename: current.filename))")
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(JuiceFont.mono(12))
                         .foregroundStyle(palette.onSurfaceVariant)
                 }
             }
@@ -102,7 +102,7 @@ struct FileDetailView: View {
                         Spacer()
                         Text(JuiceFormat.timeLeft(expiresAt: current.expiresAt))
                     }
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(JuiceFont.mono(11))
                     .foregroundStyle(palette.onSurfaceVariant)
                 }
             }
@@ -127,7 +127,7 @@ struct FileDetailView: View {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .semibold))
             Text(text)
-                .font(.system(size: 11, weight: .semibold))
+                .font(JuiceFont.body(11, weight: .semibold))
         }
         .foregroundStyle(palette.onSurfaceVariant)
         .padding(.horizontal, 10)
@@ -152,10 +152,10 @@ struct FileDetailView: View {
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(JuiceFont.body(13, weight: .semibold))
                     .foregroundStyle(palette.onSurface)
                 Text(link)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(JuiceFont.mono(11))
                     .foregroundStyle(palette.onSurfaceVariant)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -198,7 +198,7 @@ struct FileDetailView: View {
                         .padding(10)
                         .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     Text("Scan to open the \(model.settings.linkVariant) link")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(JuiceFont.mono(11))
                         .foregroundStyle(palette.onSurfaceVariant)
                 }
                 .frame(maxWidth: .infinity)
@@ -226,7 +226,7 @@ struct FileDetailView: View {
                             .font(.system(size: 13, weight: .semibold))
                     }
                     Text("Refresh info")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(JuiceFont.body(15, weight: .semibold))
                 }
                 .foregroundStyle(palette.onSurface)
                 .frame(maxWidth: .infinity)
@@ -243,7 +243,7 @@ struct FileDetailView: View {
                     Image(systemName: "trash")
                         .font(.system(size: 13, weight: .semibold))
                     Text("Delete file")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(JuiceFont.body(15, weight: .semibold))
                 }
                 .foregroundStyle(palette.error)
                 .frame(maxWidth: .infinity)

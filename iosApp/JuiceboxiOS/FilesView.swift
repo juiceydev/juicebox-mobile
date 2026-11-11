@@ -84,7 +84,7 @@ struct FilesView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Files")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .font(JuiceFont.body(38, weight: .bold))
                     .foregroundStyle(palette.onSurface)
                 Spacer()
                 Button {
@@ -99,7 +99,7 @@ struct FilesView: View {
                 .buttonStyle(.plain)
             }
             Text("\(model.files.count) files · \(JuiceFormat.bytes(totalBytes))")
-                .font(.system(size: 13))
+                .font(JuiceFont.body(13))
                 .foregroundStyle(palette.onSurfaceVariant)
         }
         .padding(.horizontal, 20)
@@ -111,7 +111,7 @@ struct FilesView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(palette.onSurfaceVariant)
             TextField("Search", text: $query)
-                .font(.system(size: 16))
+                .font(JuiceFont.body(16))
                 .foregroundStyle(palette.onSurface)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -159,11 +159,11 @@ struct FileRow: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(file.filename.isEmpty ? "Untitled" : file.filename)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(JuiceFont.body(16, weight: .semibold))
                         .foregroundStyle(palette.onSurface)
                         .lineLimit(1)
                     Text(meta)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(JuiceFont.mono(12))
                         .foregroundStyle(isFailed ? palette.error : palette.onSurfaceVariant)
                         .lineLimit(1)
                 }

@@ -65,15 +65,17 @@ xcrun simctl status_bar "$UDID" override \
 xcrun simctl install "$UDID" "$APP"
 
 shoot() {
-  local appearance="$1" tab="$2" glass="$3"
+  local appearance="$1" tab="$2" glass="$3" page="${4:-}"
   local suffix=""
   [[ "$glass" == "0" ]] && suffix="-no-glass"
+  [[ -n "$page" ]] && suffix="$suffix-$page"
   local name="$appearance-$tab$suffix.png"
 
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
   xcrun simctl ui "$UDID" appearance "$appearance" >/dev/null
 
   SIMCTL_CHILD_JUICEBOX_START_TAB="$tab" \
+  SIMCTL_CHILD_JUICEBOX_START_PAGE="$page" \
   SIMCTL_CHILD_JUICEBOX_LIQUID_GLASS="$glass" \
     xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
 
@@ -86,6 +88,10 @@ shoot() {
 for appearance in light dark; do
   for tab in upload files settings; do
     shoot "$appearance" "$tab" 1
+  done
+  # Settings is a drill-down now; capture the pages that changed most.
+  for page in server appearance uploads library; do
+    shoot "$appearance" settings 1 "$page"
   done
 done
 

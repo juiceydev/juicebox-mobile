@@ -288,6 +288,50 @@ final class AppModel: ObservableObject {
 
     func isLocked(_ file: LibraryFile) -> Bool { bridge.isLocked(file: file) }
 
+    var libraryCount: Int { files.count }
+
+    var storageHosts: [StorageHost] { bridge.storageHosts() }
+
+    func exportLibrary(includeSession: Bool) async -> String? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            bridge.exportLibrary(includeSession: includeSession) { [weak self] raw, error in
+                self?.report(error)
+                continuation.resume(returning: error == nil ? raw : nil)
+            }
+        }
+    }
+
+    func importLibrary(_ raw: String) async -> Int? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Int?, Never>) in
+            bridge.importLibrary(raw: raw) { [weak self] count, error in
+                guard let self else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                self.report(error)
+                if error == nil {
+                    self.flash("Imported \(count?.intValue ?? 0) files")
+                }
+                continuation.resume(returning: error == nil ? count?.intValue : nil)
+            }
+        }
+    }
+
+    func clearLibrary() async -> Bool {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            bridge.clearLibrary { [weak self] error in
+                guard let self else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                self.report(error)
+                if error == nil { self.flash("Local library cleared") }
+                continuation.resume(returning: error == nil)
+            }
+        }
+    }
+
+
     func link(_ file: LibraryFile, variant: String) -> String {
         switch variant {
         case "raw": return file.rawUrl.isEmpty ? swapPrefix(file.url, "f") : file.rawUrl
@@ -317,6 +361,7 @@ final class AppModel: ObservableObject {
     func setUploadPassword(_ value: String) { bridge.setUploadPassword(value: value) }
     func setLinkVariant(_ value: String) { bridge.setLinkVariant(value: value) }
     func setShareLinkMode(_ value: String) { bridge.setShareLinkMode(value: value) }
+    func setStorageHost(_ value: String?) { bridge.setStorageHost(url: value) }
     func setLastTtl(_ minutes: Int32) { bridge.setLastTtlMinutes(minutes: minutes) }
 
     func flash(_ message: String) {

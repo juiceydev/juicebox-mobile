@@ -4,6 +4,8 @@ import dev.juicey.juicebox.core.model.AppSettings
 import dev.juicey.juicebox.core.model.LibraryFile
 import dev.juicey.juicebox.core.model.ServerConfig
 import dev.juicey.juicebox.core.model.SiteAnnouncement
+import dev.juicey.juicebox.core.model.StorageHost
+import dev.juicey.juicebox.core.model.StorageHosts
 import dev.juicey.juicebox.core.upload.FileUploadSource
 import dev.juicey.juicebox.core.upload.UploadRequest
 import kotlin.math.roundToInt
@@ -135,6 +137,23 @@ class IosBridge(version: String) {
     fun forgetSession(completion: (String?) -> Unit) = run(completion) {
         core.forgetSession()
     }
+
+    fun exportLibrary(includeSession: Boolean, completion: (String?, String?) -> Unit) =
+        runWith(completion) {
+            core.exportLibrary(includeSession)
+        }
+
+    fun importLibrary(raw: String, completion: (Int?, String?) -> Unit) =
+        runWith(completion) {
+            core.importLibrary(raw)
+        }
+
+    fun clearLibrary(completion: (String?) -> Unit) = run(completion) {
+        container.libraryStore.clear()
+        runCatching { core.syncRegistry() }
+    }
+
+    fun storageHosts(): List<StorageHost> = StorageHosts.official
 
     fun uploadFile(
         path: String,

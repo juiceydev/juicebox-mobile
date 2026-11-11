@@ -60,17 +60,12 @@ struct Masthead: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image("Logo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40)
-            Text("JUICEBOX")
-                .font(.system(size: 28, weight: .black, design: .rounded))
-                .tracking(1.4)
-                .foregroundStyle(palette.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .frame(width: 42, height: 42)
+            TitleWordmark(size: 26, color: palette.primary)
             Spacer(minLength: 8)
             Button {
                 Task { await model.connect() }
@@ -84,6 +79,7 @@ struct Masthead: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 20)
+        .padding(.top, 6)
     }
 }
 
@@ -104,7 +100,7 @@ struct ConnectionBadge: View {
                 .fill(dot)
                 .frame(width: 7, height: 7)
             Text(text)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(JuiceFont.mono(11, weight: .semibold))
                 .lineLimit(1)
         }
         .foregroundStyle(palette.onSurfaceVariant)
@@ -129,7 +125,7 @@ struct AnnouncementBar: View {
                 Image(systemName: "info.circle")
                     .font(.system(size: 12, weight: .semibold))
                 Text(announcement.message ?? "")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(JuiceFont.body(12, weight: .medium))
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if let link = announcement.linkUrl, !link.isEmpty {
@@ -186,7 +182,7 @@ struct JuiceTabBar: View {
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(JuiceFont.body(11, weight: .semibold))
             }
             .foregroundStyle(selected ? palette.primary : palette.onSurfaceVariant)
             .frame(maxWidth: .infinity)
@@ -228,7 +224,7 @@ struct SectionLabel: View {
 
     var body: some View {
         Text(text.uppercased())
-            .font(.system(size: 11, weight: .bold, design: .monospaced))
+            .font(JuiceFont.mono(11, weight: .bold))
             .tracking(1)
             .foregroundStyle(palette.onSurfaceVariant)
             .padding(.horizontal, 20)
@@ -267,7 +263,7 @@ struct ActionChip: View {
                 Image(systemName: icon)
                     .font(.system(size: 13, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(JuiceFont.body(14, weight: .semibold))
             }
             .foregroundStyle(palette.onSurface)
             .frame(maxWidth: .infinity)
@@ -284,7 +280,7 @@ struct ToastView: View {
 
     var body: some View {
         Text(message)
-            .font(.system(size: 13, weight: .semibold))
+            .font(JuiceFont.body(13, weight: .semibold))
             .foregroundStyle(palette.background)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -306,10 +302,10 @@ struct JuiceEmptyState: View {
                 .font(.system(size: 34, weight: .light))
                 .foregroundStyle(palette.primary)
             Text(title)
-                .font(.system(size: 17, weight: .semibold))
+                .font(JuiceFont.body(17, weight: .semibold))
                 .foregroundStyle(palette.onSurface)
             Text(detail)
-                .font(.system(size: 13))
+                .font(JuiceFont.body(13))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(palette.onSurfaceVariant)
         }

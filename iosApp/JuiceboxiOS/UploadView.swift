@@ -15,7 +15,7 @@ struct UploadView: View {
 
     enum UploadMode: String, CaseIterable, Identifiable {
         case files = "Files"
-        case photos = "Photos"
+        case media = "Media"
         case text = "Text"
 
         var id: String { rawValue }
@@ -85,81 +85,44 @@ struct UploadView: View {
     // MARK: - Sections
 
     private func modePicker(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 26) {
+        HStack(spacing: 12) {
             ForEach(UploadMode.allCases) { item in
                 Button {
                     mode = item
                     textFocused = item == .text
                 } label: {
-                    VStack(spacing: 5) {
+                    VStack(spacing: 6) {
                         Text(item.rawValue)
-                            .font(.system(size: 15, weight: .semibold))
-                        Rectangle()
+                            .font(JuiceFont.body(14, weight: .medium))
+                        Capsule()
                             .fill(mode == item ? palette.primary : Color.clear)
-                            .frame(height: 2)
-                            .frame(maxWidth: 46)
+                            .frame(height: 3)
                     }
                     .foregroundStyle(mode == item ? palette.primary : palette.onSurfaceVariant)
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }
-            Spacer()
         }
         .padding(.horizontal, 20)
     }
 
     private func retention(_ palette: JuicePalette) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Retention")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(palette.onSurface)
-                Spacer()
-                Text(selectedTtlLabel)
-                    .font(.system(size: 15, weight: .bold, design: .monospaced))
-                    .foregroundStyle(palette.primary)
-            }
-            .padding(.horizontal, 20)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(model.ttlOptions, id: \.label) { option in
-                        let selected = option.minutes == model.selectedMinutes
-                        Button {
-                            model.selectedMinutes = option.minutes
-                            model.setLastTtl(option.minutes)
-                        } label: {
-                            Text(option.label)
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(selected ? palette.onPrimary : palette.onSurfaceVariant)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    selected ? palette.primary : palette.surfaceContainerHigh,
-                                    in: Capsule()
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
+        RetentionSlider(
+            options: model.ttlOptions,
+            minutes: model.selectedMinutes,
+            palette: palette,
+            haptics: model.settings.haptics
+        ) { minutes in
+            model.selectedMinutes = minutes
+            model.setLastTtl(minutes)
         }
-    }
-
-    private var selectedTtlLabel: String {
-        let hours = model.selectedTtl
-        if hours < 1 { return "\(Int(hours * 60)) min" }
-        if hours >= 24 && hours.truncatingRemainder(dividingBy: 24) == 0 {
-            let days = Int(hours / 24)
-            return days == 1 ? "1 day" : "\(days) days"
-        }
-        return "\(Int(hours)) hours"
+        .padding(.horizontal, 20)
     }
 
     @ViewBuilder
     private func dropZone(_ palette: JuicePalette) -> some View {
-        if mode == .photos {
+        if mode == .media {
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                 dropZoneLabel(palette, icon: "photo.on.rectangle.angled", title: "Pick a photo")
             }
@@ -180,10 +143,10 @@ struct UploadView: View {
                 .font(.system(size: 36, weight: .regular))
                 .foregroundStyle(palette.primary)
             Text(title)
-                .font(.system(size: 20, weight: .semibold))
+                .font(JuiceFont.body(20, weight: .semibold))
                 .foregroundStyle(palette.onSurface)
             Text("Tap to browse")
-                .font(.system(size: 13))
+                .font(JuiceFont.body(13))
                 .foregroundStyle(palette.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity)
@@ -211,8 +174,8 @@ struct UploadView: View {
                 HStack(spacing: 7) {
                     Image(systemName: "photo.on.rectangle")
                         .font(.system(size: 13, weight: .semibold))
-                    Text("Photos")
-                        .font(.system(size: 14, weight: .semibold))
+                    Text("Media")
+                        .font(JuiceFont.body(14, weight: .medium))
                 }
                 .foregroundStyle(palette.onSurface)
                 .frame(maxWidth: .infinity)
@@ -231,14 +194,14 @@ struct UploadView: View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
                 Text("Paste text or a link")
-                    .font(.system(size: 16))
+                    .font(JuiceFont.body(16))
                     .foregroundStyle(palette.onSurfaceVariant.opacity(0.75))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 20)
             }
             TextEditor(text: $text)
                 .focused($textFocused)
-                .font(.system(size: 16))
+                .font(JuiceFont.body(16))
                 .foregroundStyle(palette.onSurface)
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 13)
@@ -262,7 +225,7 @@ struct UploadView: View {
     private func saveRow(_ palette: JuicePalette) -> some View {
         HStack {
             Text("\(text.count) characters")
-                .font(.system(size: 12, design: .monospaced))
+                .font(JuiceFont.mono(12))
                 .foregroundStyle(palette.onSurfaceVariant)
             Spacer()
             Button {
@@ -274,7 +237,7 @@ struct UploadView: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
                     Text("Save text")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(JuiceFont.body(15, weight: .semibold))
                 }
                 .foregroundStyle(palette.onPrimary)
                 .padding(.horizontal, 18)
@@ -293,11 +256,11 @@ struct UploadView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text("Uploading")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(JuiceFont.body(14, weight: .semibold))
                         .foregroundStyle(palette.onSurface)
                     Spacer()
                     Text("\(Int(model.uploadProgress * 100))%")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .font(JuiceFont.mono(13, weight: .bold))
                         .foregroundStyle(palette.primary)
                 }
                 ProgressView(value: model.uploadProgress)
@@ -316,16 +279,16 @@ struct UploadView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(palette.success)
                     Text(file.filename.isEmpty ? "Uploaded" : file.filename)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(JuiceFont.body(15, weight: .semibold))
                         .foregroundStyle(palette.onSurface)
                         .lineLimit(1)
                     Spacer()
                     Text(JuiceFormat.bytes(file.sizeBytes))
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(JuiceFont.mono(12))
                         .foregroundStyle(palette.onSurfaceVariant)
                 }
                 Text(link)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(JuiceFont.mono(12))
                     .foregroundStyle(palette.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -363,7 +326,7 @@ struct UploadView: View {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(JuiceFont.body(12, weight: .semibold))
         }
         .foregroundStyle(palette.onSurface)
         .frame(maxWidth: .infinity)
@@ -376,7 +339,7 @@ struct UploadView: View {
             Image(systemName: "lock.fill")
                 .font(.system(size: 11))
             Text("Uploads are password-protected from this device")
-                .font(.system(size: 12))
+                .font(JuiceFont.body(12))
         }
         .foregroundStyle(palette.onSurfaceVariant)
         .padding(.horizontal, 20)
