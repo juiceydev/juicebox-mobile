@@ -37,6 +37,16 @@ final class AppModel: ObservableObject {
         self.selectedMinutes = bridge.defaultTtlMinutes()
         self.announcement = nil
 
+        // Screenshot runs pin the glass setting so light/dark captures are
+        // reproducible; a normal launch keeps whatever Settings stored.
+        if let glass = ProcessInfo.processInfo.environment["JUICEBOX_LIQUID_GLASS"] {
+            let on = glass == "1" || glass.lowercased() == "true"
+            if bridge.currentSettings().liquidGlass != on {
+                bridge.setLiquidGlass(value: on)
+                self.settings = bridge.currentSettings()
+            }
+        }
+
         subscriptions.append(bridge.observeSettings { [weak self] value in
             self?.settings = value
         })

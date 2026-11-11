@@ -4,7 +4,7 @@ struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var scheme
 
-    @State private var tab: AppTab = .upload
+    @State private var tab: AppTab = .launchDefault
 
     var body: some View {
         let palette = model.palette(scheme)

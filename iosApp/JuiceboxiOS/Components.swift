@@ -1,3 +1,4 @@
+import Foundation
 import JuiceboxCore
 import SwiftUI
 
@@ -38,10 +39,19 @@ extension View {
     }
 }
 
-enum AppTab: Hashable {
+enum AppTab: String, Hashable {
     case upload
     case files
     case settings
+
+    /// Screenshot and UI-test runs can launch straight onto a tab with
+    /// SIMCTL_CHILD_JUICEBOX_START_TAB. Normal launches start on Upload.
+    static var launchDefault: AppTab {
+        guard let raw = ProcessInfo.processInfo.environment["JUICEBOX_START_TAB"] else {
+            return .upload
+        }
+        return AppTab(rawValue: raw.lowercased()) ?? .upload
+    }
 }
 
 struct Masthead: View {

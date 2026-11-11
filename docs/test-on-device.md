@@ -14,6 +14,10 @@ Two ways to sign, both fine for a temporary device:
 Use the free route to try the build. Move to TestFlight once you want people
 you can't hand a cable to.
 
+If you just want to tap through the app before involving a phone, read
+[trying-it-from-linux.md](trying-it-from-linux.md): Appetize streams a
+simulator to the browser for free, and needs no signing at all.
+
 ## 1. Get the IPA
 
 ```sh

@@ -74,3 +74,37 @@ jobs:
           path: Juicebox-simulator.zip
           if-no-files-found: error
           retention-days: 14
+
+  screenshots:
+    name: Screenshots
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app
+          xcodebuild -version
+
+      - name: Download simulator app
+        uses: actions/download-artifact@v4
+        with:
+          name: Juicebox-simulator
+
+      - name: Capture screenshots
+        run: |
+          unzip -q Juicebox-simulator.zip -d app
+          chmod +x iosApp/scripts/capture-screenshots.sh
+          iosApp/scripts/capture-screenshots.sh app/Juicebox.app screenshots
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: Juicebox-screenshots
+          path: screenshots/*.png
+          if-no-files-found: error
+          retention-days: 14
