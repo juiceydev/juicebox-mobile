@@ -16,7 +16,7 @@ final class AppModel: ObservableObject {
     @Published var config: ServerConfig?
     @Published var announcement: SiteAnnouncement?
     @Published var ttlOptions: [IosTtlOption]
-    @Published var selectedTtl: Double
+    @Published var selectedMinutes: Int32
     @Published var isUploading = false
     @Published var uploadProgress = 0.0
     @Published var lastUpload: LibraryFile?
@@ -35,7 +35,7 @@ final class AppModel: ObservableObject {
         self.connection = bridge.currentConnection()
         self.config = bridge.currentConfig()
         self.ttlOptions = bridge.ttlOptions()
-        self.selectedTtl = bridge.defaultTtlHours()
+        self.selectedMinutes = bridge.defaultTtlMinutes()
         self.announcement = nil
 
         subscriptions.append(bridge.observeSettings { [weak self] value in
@@ -51,8 +51,8 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             self.config = value
             self.ttlOptions = self.bridge.ttlOptions()
-            if !self.ttlOptions.contains(where: { abs($0.hours - self.selectedTtl) < 0.01 }) {
-                self.selectedTtl = self.bridge.defaultTtlHours()
+            if !self.ttlOptions.contains(where: { $0.minutes == self.selectedMinutes }) {
+                self.selectedMinutes = self.bridge.defaultTtlMinutes()
             }
         })
         subscriptions.append(bridge.observeAnnouncement { [weak self] value in
@@ -62,7 +62,7 @@ final class AppModel: ObservableObject {
         bridge.initialise { [weak self] error in
             guard let self else { return }
             self.report(error)
-            self.selectedTtl = self.bridge.defaultTtlHours()
+            self.selectedMinutes = self.bridge.defaultTtlMinutes()
         }
     }
 
@@ -76,6 +76,8 @@ final class AppModel: ObservableObject {
     func palette(_ scheme: ColorScheme) -> JuicePalette {
         JuiceTheme.palette(mode: settings.themeMode, dark: scheme == .dark)
     }
+
+    var selectedTtl: Double { Double(selectedMinutes) / 60 }
 
     var serverHost: String {
         URL(string: settings.serverUrl)?.host ?? settings.serverUrl
@@ -123,7 +125,7 @@ final class AppModel: ObservableObject {
                 self.report(error)
                 if config != nil {
                     self.ttlOptions = self.bridge.ttlOptions()
-                    self.selectedTtl = self.bridge.defaultTtlHours()
+                    self.selectedMinutes = self.bridge.defaultTtlMinutes()
                     self.flash("Connected to \(self.serverHost)")
                 }
                 continuation.resume(returning: error == nil)
@@ -184,7 +186,7 @@ final class AppModel: ObservableObject {
         guard beginUpload() else { return }
         bridge.saveText(
             text: text,
-            ttlHours: selectedTtl,
+            ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
                 self?.uploadProgress = value
             },
@@ -206,7 +208,7 @@ final class AppModel: ObservableObject {
             path: path,
             filename: filename,
             mimeType: mime,
-            ttlHours: selectedTtl,
+            ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
                 self?.uploadProgress = value
             },
@@ -294,7 +296,7 @@ final class AppModel: ObservableObject {
     func setUploadPassword(_ value: String) { bridge.setUploadPassword(value: value) }
     func setLinkVariant(_ value: String) { bridge.setLinkVariant(value: value) }
     func setShareLinkMode(_ value: String) { bridge.setShareLinkMode(value: value) }
-    func setLastTtl(_ hours: Double) { bridge.setLastTtlHours(hours: hours) }
+    func setLastTtl(_ minutes: Int32) { bridge.setLastTtlMinutes(minutes: minutes) }
 
     func flash(_ message: String) {
         toast = message

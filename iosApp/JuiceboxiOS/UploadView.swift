@@ -124,10 +124,10 @@ struct UploadView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(model.ttlOptions, id: \.label) { option in
-                        let selected = abs(option.hours - model.selectedTtl) < 0.01
+                        let selected = option.minutes == model.selectedMinutes
                         Button {
-                            model.selectedTtl = option.hours
-                            model.setLastTtl(option.hours)
+                            model.selectedMinutes = option.minutes
+                            model.setLastTtl(option.minutes)
                         } label: {
                             Text(option.label)
                                 .font(.system(size: 13, weight: .semibold, design: .monospaced))

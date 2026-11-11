@@ -8,13 +8,17 @@ struct FileDetailView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dismiss) private var dismiss
 
-    @State private var current: LibraryFile
+    @State private var stored: LibraryFile
     @State private var confirmDelete = false
     @State private var busy = false
 
     init(file: LibraryFile) {
-        _current = State(initialValue: file)
+        _stored = State(initialValue: file)
     }
+
+    /// Reads go through a plain property: the read-only Kotlin fields cannot be
+    /// reached through @State's writable key-path lookup.
+    private var current: LibraryFile { stored }
 
     var body: some View {
         let palette = model.palette(scheme)
@@ -209,7 +213,7 @@ struct FileDetailView: View {
                 Task {
                     busy = true
                     if let updated = await model.refresh(current) {
-                        current = updated
+                        stored = updated
                     }
                     busy = false
                 }

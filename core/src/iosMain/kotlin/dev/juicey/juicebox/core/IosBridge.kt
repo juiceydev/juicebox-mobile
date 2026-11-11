@@ -6,6 +6,7 @@ import dev.juicey.juicebox.core.model.ServerConfig
 import dev.juicey.juicebox.core.model.SiteAnnouncement
 import dev.juicey.juicebox.core.upload.FileUploadSource
 import dev.juicey.juicebox.core.upload.UploadRequest
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,7 @@ class IosSubscription internal constructor(private val job: Job) {
 
 /** One retention choice, already labelled the way the UI shows it. */
 data class IosTtlOption(
-    val hours: Double,
+    val minutes: Int,
     val label: String,
 )
 
@@ -56,11 +57,11 @@ class IosBridge(version: String) {
 
     fun ttlOptions(): List<IosTtlOption> {
         val hours = core.config.value?.allowedTtlHours ?: FALLBACK_TTL_HOURS
-        return hours.map { IosTtlOption(it, ttlLabel(it)) }
+        return hours.map { IosTtlOption((it * 60).roundToInt(), ttlLabel(it)) }
     }
 
     /** Last pick, or the server default when nothing has been chosen yet. */
-    fun defaultTtlHours(): Double = core.ttlForUpload()
+    fun defaultTtlMinutes(): Int = (core.ttlForUpload() * 60).roundToInt()
 
     private fun ttlLabel(hours: Double): String = when {
         hours < 1 -> "${(hours * 60).toInt()}m"
@@ -136,7 +137,7 @@ class IosBridge(version: String) {
         path: String,
         filename: String,
         mimeType: String,
-        ttlHours: Double,
+        ttlMinutes: Int,
         onProgress: (Double) -> Unit,
         completion: (LibraryFile?, String?) -> Unit,
     ) {
@@ -147,7 +148,7 @@ class IosBridge(version: String) {
                 val result = core.uploadEngine.upload(
                     UploadRequest(
                         source = source,
-                        ttlHours = ttlHours,
+                        ttlHours = ttlMinutes / 60.0,
                         host = settings.storageHost,
                         password = effectivePassword(settings),
                         quickLink = settings.quickLink,
@@ -166,7 +167,7 @@ class IosBridge(version: String) {
 
     fun saveText(
         text: String,
-        ttlHours: Double,
+        ttlMinutes: Int,
         onProgress: (Double) -> Unit,
         completion: (LibraryFile?, String?) -> Unit,
     ) {
@@ -185,7 +186,7 @@ class IosBridge(version: String) {
             path = path,
             filename = "paste.txt",
             mimeType = "text/plain",
-            ttlHours = ttlHours,
+            ttlMinutes = ttlMinutes,
             onProgress = onProgress,
             completion = completion,
         )
@@ -210,7 +211,8 @@ class IosBridge(version: String) {
     fun setUploadPassword(value: String) = update { it.copy(uploadPassword = value) }
 
     /** Zero means "follow the server again". */
-    fun setLastTtlHours(hours: Double) = update {
+    fun setLastTtlMinutes(minutes: Int) = update {
+        val hours = minutes / 60.0
         it.copy(lastTtlHours = hours.takeIf { value -> value > 0 })
     }
 
