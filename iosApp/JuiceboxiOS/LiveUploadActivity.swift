@@ -1,5 +1,11 @@
 import ActivityKit
 import Foundation
+import os
+
+private let activityLog = Logger(
+    subsystem: "dev.juicey.juicebox",
+    category: "live-activity"
+)
 
 /// Drives the upload Live Activity: Lock Screen, Notification Centre and the
 /// Dynamic Island all render from the same `UploadActivityAttributes`.
@@ -13,8 +19,12 @@ final class LiveUploadActivity {
 
     private var enabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
-    func start(filename: String, totalBytes: Int64, server: String) {
-        guard enabled else { return }
+    @discardableResult
+    func start(filename: String, totalBytes: Int64, server: String) -> Bool {
+        guard enabled else {
+            activityLog.error("Live Activities are disabled for this app")
+            return false
+        }
         endStale()
         self.filename = filename.isEmpty ? "Upload" : filename
         self.totalBytes = totalBytes
@@ -29,11 +39,21 @@ final class LiveUploadActivity {
             bytesSent: 0,
             totalBytes: totalBytes
         )
-        activity = try? Activity.request(
-            attributes: attributes,
-            content: ActivityContent(state: state, staleDate: nil),
-            pushType: nil
-        )
+        do {
+            let activity = try Activity.request(
+                attributes: attributes,
+                content: ActivityContent(state: state, staleDate: nil),
+                pushType: nil
+            )
+            self.activity = activity
+            activityLog.info("Started Live Activity \(activity.id, privacy: .public)")
+            return true
+        } catch {
+            activityLog.error(
+                "Activity.request failed: \(String(describing: error), privacy: .public)"
+            )
+            return false
+        }
     }
 
     func report(progress: Double) {

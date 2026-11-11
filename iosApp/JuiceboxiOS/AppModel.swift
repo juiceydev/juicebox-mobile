@@ -54,15 +54,8 @@ final class AppModel: ObservableObject {
         }
 
         // Screenshot runs can also pin a live upload for the Dynamic Island
-        // captures. This never runs in a normal launch.
-        if ProcessInfo.processInfo.environment["JUICEBOX_DEMO_UPLOAD"] == "1" {
-            LiveUploadActivity.shared.start(
-                filename: "launch-teaser.mp4",
-                totalBytes: 48_233_472,
-                server: URL(string: self.settings.serverUrl)?.host ?? "juicey.dev"
-            )
-            LiveUploadActivity.shared.report(progress: 0.62)
-        }
+        // captures. The request happens from RootView once the scene is active;
+        // ActivityKit refuses to start one during app launch.
 
         subscriptions.append(bridge.observeSettings { [weak self] value in
             self?.settings = value
@@ -102,6 +95,26 @@ final class AppModel: ObservableObject {
     /// content without touching the network or the real library.
     private static var demoLibrary: Bool {
         ProcessInfo.processInfo.environment["JUICEBOX_DEMO_LIBRARY"] == "1"
+    }
+
+    /// Screenshot runs can pin a live upload for the Dynamic Island captures.
+    static var demoUpload: Bool {
+        ProcessInfo.processInfo.environment["JUICEBOX_DEMO_UPLOAD"] == "1"
+    }
+
+    /// Started from the UI so ActivityKit sees a foreground scene.
+    @discardableResult
+    func startDemoUpload() -> Bool {
+        guard Self.demoUpload else { return true }
+        let started = LiveUploadActivity.shared.start(
+            filename: "launch-teaser.mp4",
+            totalBytes: 48_233_472,
+            server: URL(string: settings.serverUrl)?.host ?? "juicey.dev"
+        )
+        if started {
+            LiveUploadActivity.shared.report(progress: 0.62)
+        }
+        return started
     }
 
     // MARK: - Theme

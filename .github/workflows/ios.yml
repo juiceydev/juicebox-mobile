@@ -130,6 +130,14 @@ jobs:
           python3 iosApp/scripts/export-xcresult-screenshots.py \
             iosApp/island.xcresult island-shots
 
+      - name: Live Activity diagnostics
+        if: always()
+        run: |
+          xcrun simctl list devices booted || true
+          xcrun simctl spawn booted log show --last 10m \
+            --predicate 'subsystem == "dev.juicey.juicebox"' \
+            --style compact | tail -100 || true
+
       - name: Upload Dynamic Island screenshots
         uses: actions/upload-artifact@v4
         with:

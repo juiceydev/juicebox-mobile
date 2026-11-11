@@ -22,6 +22,16 @@ struct RootView: View {
         .onChange(of: tab) { _, _ in
             model.haptic()
         }
+        .task {
+            // The demo Live Activity has to start from an active scene; retry
+            // briefly while the app finishes launching.
+            guard AppModel.demoUpload else { return }
+            try? await Task.sleep(for: .milliseconds(900))
+            for _ in 0..<4 {
+                if model.startDemoUpload() { return }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
         .background(palette.background.ignoresSafeArea())
         .tint(palette.primary)
         .environment(\.juiceGlass, model.settings.liquidGlass)
