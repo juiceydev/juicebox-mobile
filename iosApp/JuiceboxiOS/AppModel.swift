@@ -26,8 +26,8 @@ final class AppModel: ObservableObject {
     private var toastTask: Task<Void, Never>?
 
     init() {
-        let bridge = JuiceboxApp.bridge
-        self.version = JuiceboxApp.version
+        let bridge = JuiceboxRuntime.bridge
+        self.version = JuiceboxRuntime.version
         self.bridge = bridge
         self.settings = bridge.currentSettings()
         self.files = bridge.currentFiles()

@@ -38,9 +38,9 @@ enum UploadService {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw UploadServiceError.emptyFile }
         let file = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<LibraryFile, Error>) in
-            JuiceboxApp.bridge.saveText(
+            JuiceboxRuntime.bridge.saveText(
                 text: text,
-                ttlMinutes: JuiceboxApp.bridge.defaultTtlMinutes(),
+                ttlMinutes: JuiceboxRuntime.bridge.defaultTtlMinutes(),
                 onProgress: { _ in },
                 completion: { file, error in
                     if let file {
@@ -56,11 +56,11 @@ enum UploadService {
 
     private static func upload(path: String, filename: String, mime: String) async throws -> URL {
         let file = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<LibraryFile, Error>) in
-            JuiceboxApp.bridge.uploadFile(
+            JuiceboxRuntime.bridge.uploadFile(
                 path: path,
                 filename: filename,
                 mimeType: mime,
-                ttlMinutes: JuiceboxApp.bridge.defaultTtlMinutes(),
+                ttlMinutes: JuiceboxRuntime.bridge.defaultTtlMinutes(),
                 onProgress: { _ in },
                 completion: { file, error in
                     if let file {

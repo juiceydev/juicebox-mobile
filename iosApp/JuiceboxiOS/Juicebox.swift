@@ -1,7 +1,7 @@
 import Foundation
 import JuiceboxCore
 
-enum JuiceboxApp {
+enum JuiceboxRuntime {
     static let version: String =
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
