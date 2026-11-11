@@ -70,6 +70,9 @@ Notes:
   if they are off, uploads simply don't create one.
 - The Shortcuts action runs in the background, so keep demo files small; long
   uploads can be suspended when the intent's time slice ends.
+- The app now ships a widget extension (`dev.juicey.juicebox.widgets`). Sideloaders
+  have to re-sign nested bundles; if yours refuses, say so and the device
+  workflow can be pointed at a build without the extension.
 
 ## What to look at
 

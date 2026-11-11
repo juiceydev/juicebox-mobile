@@ -68,9 +68,19 @@ need an Apple Developer team and a signing profile in the repository secrets;
 none are configured yet.
 
 Themes are the five static palettes (Juicebox, Violet, Ocean, Forest, Rose);
-Material You is Android-only. Uploads run in the foreground for now, and
-picking files happens in-app because a share extension would need App Groups
-from a paid Apple Developer account.
+Material You is Android-only. On iOS 26 a Liquid Glass toggle switches the
+cards and tab bar to molten surfaces, and folds away on older systems.
+
+An upload drives an ActivityKit Live Activity — Lock Screen, Notification
+Centre and Dynamic Island, with compact, minimal and expanded presentations.
+`JuiceboxWidgets` renders it and shares `UploadActivityAttributes` with the app.
+Two App Intents expose **Upload to Juicebox** (file) and **Upload text to
+Juicebox** to Shortcuts and Siri; both reuse the app's single bridge, so they
+respect the session, retention and upload password.
+
+Uploads run in the foreground for now, and picking files happens in-app
+because a share extension would need App Groups from a paid Apple Developer
+account.
 
 ## Versioning
 
