@@ -184,7 +184,7 @@ struct UploadView: View {
                 showFileImporter = true
             }
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
-                pickerLabel(icon: "photo.on.rectangle", title: "Photos", palette: palette)
+                pickerLabel("photo.on.rectangle", title: "Photos", palette: palette)
             }
             .buttonStyle(.plain)
             ActionChip(icon: "camera", title: "Camera", palette: palette) {
