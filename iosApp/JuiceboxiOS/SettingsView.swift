@@ -7,18 +7,18 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.openURL) private var openURL
 
-    @State private var page: SettingsPage?
+    @State private var path: [SettingsPage]
     @State private var dialog: SettingsDialog?
+    @State private var launchDialog: SettingsDialog?
 
     @State private var serverInput = ""
     @State private var serverBusy = false
     @State private var customHost = ""
     @State private var customHostBusy = false
-    @State private var customHostMessage: String?
+    @State private var customHostNotice: String?
     @State private var customHostOk = false
 
     @State private var passwordDraft = ""
-    @State private var showPassword = false
 
     @State private var includeSession = false
     @State private var exportDocument = LibraryDocument(text: "")
@@ -40,6 +40,19 @@ struct SettingsView: View {
             case .session: return "This session"
             }
         }
+
+        var icon: String {
+            switch self {
+            case .server: return "globe"
+            case .storage: return "cloud"
+            case .appearance: return "moon"
+            case .uploads: return "arrow.up.circle"
+            case .links: return "link"
+            case .library: return "folder"
+            case .about: return "info.circle"
+            case .session: return "iphone"
+            }
+        }
     }
 
     enum SettingsDialog: Hashable {
@@ -53,8 +66,8 @@ struct SettingsView: View {
         let environment = ProcessInfo.processInfo.environment
         let start = environment["JUICEBOX_START_PAGE"]
             .flatMap { SettingsPage(rawValue: $0) }
-        _page = State(initialValue: start)
-        _dialog = State(initialValue: SettingsView.dialog(named: environment["JUICEBOX_START_DIALOG"]))
+        _path = State(initialValue: start.map { [$0] } ?? [])
+        _launchDialog = State(initialValue: Self.dialog(named: environment["JUICEBOX_START_DIALOG"]))
     }
 
     private static func dialog(named raw: String?) -> SettingsDialog? {
@@ -69,38 +82,36 @@ struct SettingsView: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        ZStack {
-            palette.background.ignoresSafeArea()
-            if let page {
-                subpage(page, palette)
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .trailing).combined(with: .opacity)
-                        )
-                    )
-                    .zIndex(1)
-            } else {
-                root(palette)
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .opacity
-                        )
-                    )
-            }
-            if let dialog {
-                SettingsDialogOverlay(
-                    palette: palette,
-                    onDismiss: { self.dialog = nil },
-                    content: { dialogCard(dialog, palette) }
-                )
-                .transition(.opacity)
-                .zIndex(3)
-            }
+        NavigationStack(path: $path) {
+            root(palette)
+                .navigationTitle("Settings")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        TitleWordmark(size: 14, color: palette.primary)
+                    }
+                }
+                .navigationDestination(for: SettingsPage.self) { page in
+                    pageBody(page, palette)
+                        .navigationTitle(page.title)
+                        .navigationBarTitleDisplayMode(.inline)
+                }
         }
-        .animation(.snappy(duration: 0.32), value: page)
-        .animation(.easeOut(duration: 0.2), value: dialog)
+        .tint(palette.primary)
+        .alert(
+            "Forget this device?",
+            isPresented: presented(.forget)
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Forget", role: .destructive) { forgetDevice() }
+        } message: {
+            Text("A new anonymous session starts on this phone. Existing links stay online.")
+        }
+        .task {
+            guard let pending = launchDialog else { return }
+            launchDialog = nil
+            try? await Task.sleep(for: .milliseconds(450))
+            dialog = pending
+        }
         .onAppear {
             serverInput = model.settings.serverUrl
         }
@@ -120,67 +131,24 @@ struct SettingsView: View {
     // MARK: - Root
 
     private func root(_ palette: JuicePalette) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings")
-                        .font(JuiceFont.body(36))
-                        .tracking(-0.8)
-                        .foregroundStyle(palette.onSurface)
-                    TitleWordmark(size: 16, color: palette.primary)
-                }
-
-                SettingsGroup(palette: palette) {
-                    SettingsNavRow(icon: "globe", title: "Server", palette: palette) {
-                        page = .server
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "cloud", title: "Storage", palette: palette) {
-                        page = .storage
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "moon", title: "Appearance", palette: palette) {
-                        page = .appearance
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "arrow.up.circle", title: "Uploads", palette: palette) {
-                        page = .uploads
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "link", title: "Default Link", palette: palette) {
-                        page = .links
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "folder", title: "Library", palette: palette) {
-                        page = .library
-                    }
-                    HairlineDivider(palette: palette)
-                    SettingsNavRow(icon: "info.circle", title: "About", palette: palette) {
-                        page = .about
+        settingsList(palette) {
+            Section {
+                ForEach(
+                    [SettingsPage.server, .storage, .appearance, .uploads, .links, .library, .about],
+                    id: \.self
+                ) { page in
+                    NavigationLink(value: page) {
+                        Label(page.title, systemImage: page.icon)
+                            .foregroundStyle(palette.onSurface)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 32)
-        }
-    }
-
-    private func subpage(_ page: SettingsPage, _ palette: JuicePalette) -> some View {
-        VStack(spacing: 0) {
-            SettingsTopBar(title: page.title, palette: palette) {
-                self.page = nil
-            }
-            ScrollView {
-                pageContent(page, palette)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
-            }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
     }
 
     @ViewBuilder
-    private func pageContent(_ page: SettingsPage, _ palette: JuicePalette) -> some View {
+    private func pageBody(_ page: SettingsPage, _ palette: JuicePalette) -> some View {
         switch page {
         case .server: serverPage(palette)
         case .storage: storagePage(palette)
@@ -191,6 +159,22 @@ struct SettingsView: View {
         case .about: aboutPage(palette)
         case .session: sessionPage(palette)
         }
+    }
+
+    /// A native grouped list wearing the brand palette. Every page is a List,
+    /// so it gets system row insets, selection, swipe-back and separators.
+    private func settingsList<Content: View>(
+        _ palette: JuicePalette,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        List {
+            content()
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(palette.background.ignoresSafeArea())
+        .tint(palette.primary)
+        .font(JuiceFont.body(16))
     }
 
     // MARK: - Server
@@ -207,47 +191,51 @@ struct SettingsView: View {
     }
 
     private func serverPage(_ palette: JuicePalette) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                VStack(alignment: .leading, spacing: 12) {
-                    SettingsField(
-                        label: "Server URL",
-                        placeholder: "https://box.juicey.dev",
-                        text: $serverInput,
-                        palette: palette,
-                        labelBackground: palette.surfaceContainerLow,
-                        keyboard: .URL
-                    )
-                    Text(connectionLabel)
-                        .font(JuiceFont.body(12, weight: .medium))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                    SettingsPrimaryButton(
-                        title: "Save",
-                        icon: "checkmark",
-                        busy: serverBusy,
-                        enabled: !serverInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                        palette: palette
-                    ) {
-                        saveServer()
-                    }
-                }
-                .padding(18)
+        settingsList(palette) {
+            Section {
+                TextField("Server URL", text: $serverInput)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                LabeledContent("Status", value: connectionLabel)
+            } header: {
+                Text("Server")
+            } footer: {
+                Text("Juicebox talks to this host for uploads and your library.")
             }
+            .listRowBackground(ListRowSurface(palette: palette))
+
+            Section {
+                Button {
+                    saveServer()
+                } label: {
+                    HStack(spacing: 8) {
+                        if serverBusy {
+                            ProgressView()
+                        }
+                        Text("Save")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .disabled(
+                    serverBusy ||
+                    serverInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            }
+            .listRowBackground(ListRowSurface(palette: palette))
 
             if let config = model.config {
-                SettingsGroup(palette: palette) {
-                    SettingsInfoRow(
-                        title: "Largest file",
-                        value: JuiceFormat.bytes(config.maxFileSizeBytes),
-                        palette: palette
+                Section("Limits") {
+                    LabeledContent(
+                        "Largest file",
+                        value: JuiceFormat.bytes(config.maxFileSizeBytes)
                     )
-                    HairlineDivider(palette: palette)
-                    SettingsInfoRow(
-                        title: "Retention",
-                        value: "up to \(TtlFormat.label(minutes: Int32((config.maxTtlHours * 60).rounded())))",
-                        palette: palette
+                    LabeledContent(
+                        "Retention",
+                        value: "up to \(TtlFormat.label(minutes: Int32((config.maxTtlHours * 60).rounded())))"
                     )
                 }
+                .listRowBackground(ListRowSurface(palette: palette))
             }
         }
     }
@@ -268,109 +256,96 @@ struct SettingsView: View {
         return model.settings.customHosts.filter { !known.contains($0) }
     }
 
-    private func storagePage(_ palette: JuicePalette) -> some View {
-        let selected = model.settings.storageHost
-        return VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                ChoiceOption(label: "Auto", selected: selected == nil, palette: palette) {
-                    model.setStorageHost(nil)
-                }
-                ForEach(model.storageHosts, id: \.url) { host in
-                    HairlineDivider(palette: palette)
-                    ChoiceOption(
-                        label: host.name,
-                        selected: selected == host.url,
-                        palette: palette
-                    ) {
-                        model.setStorageHost(host.url)
-                    }
-                }
-            }
+    private var storageSelection: Binding<String?> {
+        Binding(
+            get: { model.settings.storageHost },
+            set: { model.setStorageHost($0) }
+        )
+    }
 
-            VStack(alignment: .leading, spacing: 8) {
-                groupLabel("Community", palette)
-                if model.communityHosts.isEmpty {
-                    SettingsGroup(palette: palette) {
-                        Text(
-                            model.communityHostsLoaded
-                                ? "No community nodes listed yet."
-                                : "Checking for community nodes..."
-                        )
-                        .font(JuiceFont.body(12))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 14)
+    private func hostName(_ url: String) -> String {
+        url
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+
+    private func storagePage(_ palette: JuicePalette) -> some View {
+        settingsList(palette) {
+            Section {
+                Picker("Storage", selection: storageSelection) {
+                    Text("Auto").tag(Optional<String>.none)
+                    ForEach(model.storageHosts, id: \.url) { host in
+                        Text(host.name).tag(Optional(host.url))
                     }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text("Storage")
+            } footer: {
+                Text("Auto picks the fastest node for this upload.")
+            }
+            .listRowBackground(ListRowSurface(palette: palette))
+
+            Section("Community") {
+                if model.communityHosts.isEmpty {
+                    Text(
+                        model.communityHostsLoaded
+                            ? "No community nodes listed yet."
+                            : "Checking for community nodes..."
+                    )
+                    .foregroundStyle(palette.onSurfaceVariant)
                 } else {
-                    SettingsGroup(palette: palette) {
-                        ForEach(Array(model.communityHosts.enumerated()), id: \.offset) { index, host in
-                            if index > 0 { HairlineDivider(palette: palette) }
-                            ChoiceOption(
-                                label: host.name,
-                                selected: selected == host.url,
-                                palette: palette
-                            ) {
-                                model.setStorageHost(host.url)
-                            }
+                    Picker("Community", selection: storageSelection) {
+                        ForEach(model.communityHosts, id: \.url) { host in
+                            Text(host.name).tag(Optional(host.url))
                         }
                     }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
 
             if !savedHosts.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    groupLabel("Saved nodes", palette)
-                    SettingsGroup(palette: palette) {
-                        ForEach(Array(savedHosts.enumerated()), id: \.offset) { index, url in
-                            if index > 0 { HairlineDivider(palette: palette) }
-                            ChoiceOption(
-                                label: url
-                                    .replacingOccurrences(of: "https://", with: "")
-                                    .replacingOccurrences(of: "http://", with: "")
-                                    .trimmingCharacters(in: CharacterSet(charactersIn: "/")),
-                                selected: selected == url,
-                                palette: palette
-                            ) {
-                                model.setStorageHost(url)
-                            }
+                Section("Saved nodes") {
+                    Picker("Saved nodes", selection: storageSelection) {
+                        ForEach(savedHosts, id: \.self) { url in
+                            Text(hostName(url)).tag(Optional(url))
                         }
                     }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                 }
+                .listRowBackground(ListRowSurface(palette: palette))
             }
 
-            SettingsGroup(palette: palette) {
-                VStack(alignment: .leading, spacing: 12) {
-                    SettingsField(
-                        label: "Custom node",
-                        placeholder: "https://f-eu3.juicey.dev",
-                        text: $customHost,
-                        palette: palette,
-                        labelBackground: palette.surfaceContainerLow,
-                        keyboard: .URL
-                    )
-                    HStack(spacing: 10) {
-                        if let customHostMessage {
-                            Text(customHostMessage)
-                                .font(JuiceFont.body(12))
-                                .foregroundStyle(customHostOk ? palette.primary : palette.error)
-                                .lineLimit(3)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Spacer(minLength: 0)
+            Section {
+                TextField("https://f-eu3.juicey.dev", text: $customHost)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button {
+                    checkHost()
+                } label: {
+                    HStack(spacing: 8) {
+                        if customHostBusy {
+                            ProgressView()
                         }
-                        SettingsTonalButton(
-                            title: "Check",
-                            icon: "cloud",
-                            busy: customHostBusy,
-                            palette: palette
-                        ) {
-                            checkHost()
-                        }
+                        Text("Check")
                     }
                 }
-                .padding(18)
+                .disabled(customHostBusy)
+            } header: {
+                Text("Custom node")
+            } footer: {
+                if let customHostNotice {
+                    Text(customHostNotice)
+                        .foregroundStyle(customHostOk ? palette.primary : palette.error)
+                }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
         .onAppear { model.loadCommunityHosts() }
     }
@@ -384,17 +359,17 @@ struct SettingsView: View {
         if !value.contains("://") { value = "https://" + value }
         while value.hasSuffix("/") { value.removeLast() }
         customHostBusy = true
-        customHostMessage = nil
+        customHostNotice = nil
         Task {
             let result = await model.validateHost(value)
             customHostBusy = false
             if let result, result.accepted {
                 model.saveCustomHost(value)
                 customHost = value
-                customHostMessage = "Online"
+                customHostNotice = "Online"
                 customHostOk = true
             } else {
-                customHostMessage = "Not reachable"
+                customHostNotice = "Not reachable"
                 customHostOk = false
             }
         }
@@ -404,31 +379,47 @@ struct SettingsView: View {
 
     private func appearancePage(_ palette: JuicePalette) -> some View {
         let current = JuiceTheme.normalized(model.settings.themeMode)
-        return VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                ForEach(Array(JuiceTheme.modes.enumerated()), id: \.element.id) { index, theme in
-                    if index > 0 { HairlineDivider(palette: palette) }
-                    ThemeChoiceRow(
-                        theme: theme,
-                        swatches: swatches(theme.id),
-                        selected: current == theme.id,
-                        palette: palette
-                    ) {
+        return settingsList(palette) {
+            Section {
+                ForEach(JuiceTheme.modes) { theme in
+                    Button {
                         model.setTheme(theme.id)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text(theme.label)
+                                .foregroundStyle(palette.onSurface)
+                            Spacer(minLength: 8)
+                            HStack(spacing: 4) {
+                                ForEach(Array(swatches(theme.id).enumerated()), id: \.offset) { _, color in
+                                    Circle()
+                                        .fill(color)
+                                        .frame(width: 14, height: 14)
+                                }
+                            }
+                            if current == theme.id {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(palette.primary)
+                            }
+                        }
                     }
                 }
+            } header: {
+                Text("Theme")
             }
+            .listRowBackground(ListRowSurface(palette: palette))
 
             if #available(iOS 26.0, *) {
-                SettingsGroup(palette: palette) {
-                    SettingsToggleRow(
-                        title: "Liquid Glass",
-                        isOn: model.settings.liquidGlass,
-                        palette: palette
-                    ) {
-                        model.setLiquidGlass($0)
-                    }
+                Section {
+                    Toggle(
+                        "Liquid Glass",
+                        isOn: Binding(
+                            get: { model.settings.liquidGlass },
+                            set: { model.setLiquidGlass($0) }
+                        )
+                    )
                 }
+                .listRowBackground(ListRowSurface(palette: palette))
             }
         }
     }
@@ -455,146 +446,184 @@ struct SettingsView: View {
     }
 
     private func uploadsPage(_ palette: JuicePalette) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                SettingsToggleRow(
-                    title: "Quick link",
-                    isOn: model.settings.quickLink,
-                    palette: palette
-                ) {
-                    model.setQuickLink($0)
-                }
-                HairlineDivider(palette: palette)
-                SettingsToggleRow(
-                    title: "Copy link automatically",
-                    isOn: model.settings.autoCopy,
-                    palette: palette
-                ) {
-                    model.setAutoCopy($0)
-                }
-                HairlineDivider(palette: palette)
-                SettingsToggleRow(
-                    title: "Haptics",
-                    isOn: model.settings.haptics,
-                    palette: palette
-                ) {
-                    model.setHaptics($0)
-                }
-                HairlineDivider(palette: palette)
-                SettingsChoiceRow(
-                    title: "Shared links",
-                    value: shareModeLabel,
-                    palette: palette
-                ) {
+        settingsList(palette) {
+            Section {
+                Toggle(
+                    "Quick link",
+                    isOn: Binding(
+                        get: { model.settings.quickLink },
+                        set: { model.setQuickLink($0) }
+                    )
+                )
+                Toggle(
+                    "Copy link automatically",
+                    isOn: Binding(
+                        get: { model.settings.autoCopy },
+                        set: { model.setAutoCopy($0) }
+                    )
+                )
+                Toggle(
+                    "Haptics",
+                    isOn: Binding(
+                        get: { model.settings.haptics },
+                        set: { model.setHaptics($0) }
+                    )
+                )
+                Button {
                     dialog = .share
+                } label: {
+                    HStack {
+                        Text("Shared links")
+                            .foregroundStyle(palette.onSurface)
+                        Spacer(minLength: 8)
+                        Text(shareModeLabel)
+                            .foregroundStyle(palette.onSurfaceVariant)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(palette.outline)
+                    }
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
 
-            SettingsGroup(palette: palette) {
-                SettingsToggleRow(
-                    title: "Lock uploads",
-                    isOn: model.settings.lockUploads,
-                    palette: palette
-                ) { checked in
-                    if checked {
-                        passwordDraft = model.settings.uploadPassword
-                        showPassword = false
-                        dialog = .password
-                    } else {
-                        model.setLockUploads(false)
-                    }
-                }
+            Section {
+                Toggle(
+                    "Lock uploads",
+                    isOn: Binding(
+                        get: { model.settings.lockUploads },
+                        set: { checked in
+                            if checked {
+                                passwordDraft = model.settings.uploadPassword
+                                dialog = .password
+                            } else {
+                                model.setLockUploads(false)
+                            }
+                        }
+                    )
+                )
                 if model.settings.lockUploads && !model.settings.uploadPassword.isEmpty {
-                    HairlineDivider(palette: palette)
-                    SettingsActionRow(
-                        icon: "key",
-                        title: "Change password",
-                        palette: palette
-                    ) {
+                    Button {
                         passwordDraft = model.settings.uploadPassword
-                        showPassword = false
                         dialog = .password
+                    } label: {
+                        Label("Change password", systemImage: "key")
+                            .foregroundStyle(palette.onSurface)
                     }
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
+        .confirmationDialog(
+            "Shared links",
+            isPresented: presented(.share),
+            titleVisibility: .visible
+        ) {
+            Button("Fetch video") {
+                model.setShareLinkMode("fetch")
+                dialog = nil
+            }
+            Button("Upload as text") {
+                model.setShareLinkMode("text")
+                dialog = nil
+            }
+            Button("Cancel", role: .cancel) { dialog = nil }
+        }
+        .alert("Upload password", isPresented: presented(.password)) {
+            SecureField("Password", text: $passwordDraft)
+            Button("Cancel", role: .cancel) { dialog = nil }
+            Button("Save") { savePassword() }
+                .disabled(
+                    passwordDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+        } message: {
+            Text("Uploads from this phone will ask for this password.")
+        }
+    }
+
+    private func savePassword() {
+        let value = passwordDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        model.setUploadPassword(value)
+        model.setLockUploads(true)
+        dialog = nil
     }
 
     // MARK: - Default link
 
     private func linksPage(_ palette: JuicePalette) -> some View {
-        let variants = [("preview", "Preview"), ("raw", "Raw"), ("download", "Download")]
-        return VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                ForEach(Array(variants.enumerated()), id: \.offset) { index, item in
-                    if index > 0 { HairlineDivider(palette: palette) }
-                    ChoiceOption(
-                        label: item.1,
-                        selected: model.settings.linkVariant == item.0,
-                        palette: palette
-                    ) {
-                        model.setLinkVariant(item.0)
-                    }
+        settingsList(palette) {
+            Section {
+                Picker(
+                    "Default link",
+                    selection: Binding(
+                        get: { model.settings.linkVariant },
+                        set: { model.setLinkVariant($0) }
+                    )
+                ) {
+                    Text("Preview").tag("preview")
+                    Text("Raw").tag("raw")
+                    Text("Download").tag("download")
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text("Default link")
+            } footer: {
+                Text("Which link Juicebox copies after an upload.")
             }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
     }
 
     // MARK: - Library
 
     private func libraryPage(_ palette: JuicePalette) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(model.libraryCount) files")
-                        .font(JuiceFont.body(16, weight: .medium))
-                        .foregroundStyle(palette.onSurface)
-                    Text("On this device")
-                        .font(JuiceFont.body(12))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(18)
-                HairlineDivider(palette: palette)
-                SettingsToggleRow(
-                    title: "Include identity",
-                    isOn: includeSession,
-                    palette: palette
-                ) {
-                    includeSession = $0
-                }
-                HairlineDivider(palette: palette)
-                HStack(spacing: 8) {
-                    SettingsTonalButton(
-                        title: "Export",
-                        icon: "arrow.down.circle",
-                        expanded: true,
-                        palette: palette
-                    ) {
+        settingsList(palette) {
+            Section {
+                LabeledContent("Files", value: "\(model.libraryCount)")
+                Toggle("Include identity", isOn: $includeSession)
+                HStack(spacing: 10) {
+                    Button {
                         runExport()
+                    } label: {
+                        Label("Export", systemImage: "arrow.down.circle")
+                            .frame(maxWidth: .infinity)
                     }
-                    SettingsTonalButton(
-                        title: "Import",
-                        icon: "arrow.up.circle",
-                        expanded: true,
-                        palette: palette
-                    ) {
+                    .buttonStyle(.bordered)
+                    Button {
                         showImporter = true
+                    } label: {
+                        Label("Import", systemImage: "arrow.up.circle")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
                 }
-                .padding(12)
+                .controlSize(.large)
+            } header: {
+                Text("On this device")
             }
+            .listRowBackground(ListRowSurface(palette: palette))
 
-            SettingsGroup(palette: palette) {
-                SettingsActionRow(
-                    icon: "trash",
-                    title: "Clear local library",
-                    destructive: true,
-                    palette: palette
-                ) {
+            Section {
+                Button(role: .destructive) {
                     dialog = .clear
+                } label: {
+                    Label("Clear local library", systemImage: "trash")
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
+        }
+        .alert("Clear local library?", isPresented: presented(.clear)) {
+            Button("Cancel", role: .cancel) { dialog = nil }
+            Button("Clear", role: .destructive) {
+                dialog = nil
+                Task { _ = await model.clearLibrary() }
+            }
+        } message: {
+            Text(
+                "Every saved file and link token leaves this phone. Files already " +
+                "uploaded stay online until they expire."
+            )
         }
     }
 
@@ -632,8 +661,8 @@ struct SettingsView: View {
 
     private func aboutPage(_ palette: JuicePalette) -> some View {
         let active = model.connection.connected
-        return VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
+        return settingsList(palette) {
+            Section {
                 HStack(spacing: 14) {
                     Image("Logo")
                         .resizable()
@@ -647,30 +676,30 @@ struct SettingsView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(18)
-                HairlineDivider(palette: palette)
-                SettingsNavRow(
-                    icon: "iphone",
-                    title: "This session",
-                    value: active ? "Active" : "None",
-                    palette: palette
-                ) {
-                    page = .session
+            }
+            .listRowBackground(ListRowSurface(palette: palette))
+
+            Section {
+                NavigationLink(value: SettingsPage.session) {
+                    Label("This session", systemImage: "iphone")
+                        .foregroundStyle(palette.onSurface)
+                    Spacer()
+                    Text(active ? "Active" : "None")
+                        .foregroundStyle(palette.onSurfaceVariant)
                 }
-                HairlineDivider(palette: palette)
-                SettingsActionRow(icon: "globe", title: "Open site", palette: palette) {
+                Button {
                     openSite()
+                } label: {
+                    Label("Open site", systemImage: "globe")
+                        .foregroundStyle(palette.onSurface)
                 }
-                HairlineDivider(palette: palette)
-                SettingsActionRow(
-                    icon: "iphone",
-                    title: "Forget device",
-                    destructive: true,
-                    palette: palette
-                ) {
+                Button(role: .destructive) {
                     dialog = .forget
+                } label: {
+                    Label("Forget device", systemImage: "iphone")
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
     }
 
@@ -685,176 +714,68 @@ struct SettingsView: View {
     private func sessionPage(_ palette: JuicePalette) -> some View {
         let active = model.connection.connected
         let host = model.serverHost
-        return VStack(alignment: .leading, spacing: 16) {
-            SettingsGroup(palette: palette) {
+        return settingsList(palette) {
+            Section {
                 HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(palette.primaryContainer)
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "iphone")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundStyle(palette.onPrimaryContainer)
-                    }
+                    Image(systemName: "iphone")
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundStyle(palette.onPrimaryContainer)
+                        .frame(width: 48, height: 48)
+                        .background(palette.primaryContainer, in: Circle())
                     VStack(alignment: .leading, spacing: 2) {
                         Text(active ? "Active session" : "No session yet")
                             .font(JuiceFont.body(16, weight: .medium))
                             .foregroundStyle(palette.onSurface)
-                        Text(active ? "Anonymous identity saved on this phone" : "Connect to start one")
-                            .font(JuiceFont.body(12))
-                            .foregroundStyle(palette.onSurfaceVariant)
+                        Text(
+                            active
+                                ? "Anonymous identity saved on this phone"
+                                : "Connect to start one"
+                        )
+                        .font(JuiceFont.body(12))
+                        .foregroundStyle(palette.onSurfaceVariant)
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(18)
-                HairlineDivider(palette: palette)
-                SettingsInfoRow(title: "Server", value: host, palette: palette)
-                HairlineDivider(palette: palette)
-                SettingsInfoRow(title: "Library", value: "\(model.libraryCount) files", palette: palette)
-                HairlineDivider(palette: palette)
-                SettingsInfoRow(title: "App", value: "v\(model.version)", palette: palette)
+                LabeledContent("Server", value: host)
+                LabeledContent("Library", value: "\(model.libraryCount) files")
+                LabeledContent("App", value: "v\(model.version)")
+            } footer: {
+                Text(
+                    "This session is an anonymous cookie stored on this device. " +
+                    "It keeps your library across restarts; forgetting it starts a fresh identity " +
+                    "and leaves existing links online."
+                )
             }
+            .listRowBackground(ListRowSurface(palette: palette))
 
-            Text(
-                "This session is an anonymous cookie stored on this device. " +
-                "It keeps your library across restarts; forgetting it starts a fresh identity " +
-                "and leaves existing links online."
-            )
-            .font(JuiceFont.body(12))
-            .foregroundStyle(palette.onSurfaceVariant)
-            .padding(.horizontal, 6)
-
-            SettingsGroup(palette: palette) {
-                SettingsActionRow(
-                    icon: "iphone",
-                    title: "Forget device",
-                    destructive: true,
-                    palette: palette
-                ) {
+            Section {
+                Button(role: .destructive) {
                     dialog = .forget
+                } label: {
+                    Label("Forget device", systemImage: "iphone")
                 }
             }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
     }
 
     // MARK: - Dialogs
 
-    @ViewBuilder
-    private func dialogCard(_ dialog: SettingsDialog, _ palette: JuicePalette) -> some View {
-        switch dialog {
-        case .share:
-            SettingsDialogCard(
-                icon: "link",
-                title: "Shared links",
-                palette: palette,
-                confirmLabel: "Cancel",
-                showConfirm: false,
-                onConfirm: { self.dialog = nil },
-                onDismiss: { self.dialog = nil }
-            ) {
-                VStack(spacing: 0) {
-                    ChoiceOption(
-                        label: "Fetch video",
-                        selected: model.settings.shareLinkMode != "text",
-                        palette: palette
-                    ) {
-                        model.setShareLinkMode("fetch")
-                        self.dialog = nil
-                    }
-                    ChoiceOption(
-                        label: "Upload as text",
-                        selected: model.settings.shareLinkMode == "text",
-                        palette: palette
-                    ) {
-                        model.setShareLinkMode("text")
-                        self.dialog = nil
-                    }
-                }
+    private func presented(_ target: SettingsDialog) -> Binding<Bool> {
+        Binding(
+            get: { dialog == target },
+            set: { shown in
+                if !shown && dialog == target { dialog = nil }
             }
-        case .password:
-            SettingsDialogCard(
-                icon: "key",
-                title: "Upload password",
-                palette: palette,
-                confirmLabel: "Save",
-                confirmEnabled: !passwordDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                onConfirm: {
-                    let value = passwordDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !value.isEmpty else { return }
-                    model.setUploadPassword(value)
-                    model.setLockUploads(true)
-                    self.dialog = nil
-                },
-                onDismiss: { self.dialog = nil }
-            ) {
-                HStack(spacing: 8) {
-                    SettingsField(
-                        label: "Password",
-                        text: $passwordDraft,
-                        palette: palette,
-                        labelBackground: palette.surfaceContainerHigh,
-                        keyboard: .default,
-                        secure: !showPassword
-                    )
-                    Button {
-                        showPassword.toggle()
-                    } label: {
-                        Image(systemName: showPassword ? "eye.slash" : "eye")
-                            .font(.system(size: 16))
-                            .foregroundStyle(palette.onSurfaceVariant)
-                            .frame(width: 40, height: 56)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        case .forget:
-            SettingsDialogCard(
-                icon: "iphone",
-                title: "Forget this device?",
-                palette: palette,
-                confirmLabel: "Forget",
-                destructive: true,
-                onConfirm: {
-                    self.dialog = nil
-                    Task {
-                        _ = await model.forgetDevice()
-                        await model.connect()
-                    }
-                },
-                onDismiss: { self.dialog = nil }
-            ) {
-                Text("A new anonymous session starts on this phone. Existing links stay online.")
-                    .font(JuiceFont.body(14))
-                    .foregroundStyle(palette.onSurfaceVariant)
-            }
-        case .clear:
-            SettingsDialogCard(
-                icon: "trash",
-                title: "Clear local library?",
-                palette: palette,
-                confirmLabel: "Clear",
-                destructive: true,
-                onConfirm: {
-                    self.dialog = nil
-                    Task { _ = await model.clearLibrary() }
-                },
-                onDismiss: { self.dialog = nil }
-            ) {
-                Text(
-                    "Every saved file and link token leaves this phone. Files already " +
-                    "uploaded stay online until they expire."
-                )
-                .font(JuiceFont.body(14))
-                .foregroundStyle(palette.onSurfaceVariant)
-            }
-        }
+        )
     }
 
-    private func groupLabel(_ text: String, _ palette: JuicePalette) -> some View {
-        Text(text)
-            .font(JuiceFont.body(14, weight: .medium))
-            .foregroundStyle(palette.onSurfaceVariant)
-            .padding(.leading, 6)
+    private func forgetDevice() {
+        dialog = nil
+        Task {
+            _ = await model.forgetDevice()
+            await model.connect()
+        }
     }
 }
 

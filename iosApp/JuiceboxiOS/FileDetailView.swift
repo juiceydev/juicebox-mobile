@@ -12,6 +12,12 @@ struct FileDetailView: View {
     @State private var confirmDelete = false
     @State private var busy = false
 
+    private let variants = [
+        ("Preview", "preview"),
+        ("Raw", "raw"),
+        ("Download", "download"),
+    ]
+
     init(file: LibraryFile) {
         _stored = State(initialValue: file)
     }
@@ -22,17 +28,63 @@ struct FileDetailView: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+        List {
+            Section {
                 header(palette)
-                linksCard(palette)
-                qrCard(palette)
-                actions(palette)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            .listRowBackground(ListRowSurface(palette: palette))
+
+            Section("Links") {
+                ForEach(variants.indices, id: \.self) { index in
+                    linkRow(
+                        variants[index].0,
+                        variant: variants[index].1,
+                        palette: palette
+                    )
+                }
+            }
+            .listRowBackground(ListRowSurface(palette: palette))
+
+            qrSection(palette)
+
+            Section {
+                Button {
+                    Task {
+                        busy = true
+                        if let updated = await model.refresh(current) {
+                            stored = updated
+                        }
+                        busy = false
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        if busy {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text("Refresh info")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .disabled(busy)
+
+                Button(role: .destructive) {
+                    confirmDelete = true
+                } label: {
+                    Label("Delete file", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .listRowBackground(ListRowSurface(palette: palette))
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(palette.background.ignoresSafeArea())
+        .tint(palette.primary)
+        .font(JuiceFont.body(16))
+        .navigationTitle("File")
+        .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             "Delete this file?",
             isPresented: $confirmDelete,
@@ -52,37 +104,26 @@ struct FileDetailView: View {
 
     private func header(_ palette: JuicePalette) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .frame(width: 32, height: 32)
-                        .background(palette.surfaceContainerHigh, in: Circle())
-                }
-                .buttonStyle(.plain)
-            }
-
             HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(palette.surfaceContainerHigh)
-                        .frame(width: 60, height: 60)
-                    Image(systemName: JuiceFormat.mimeSymbol(current.mimeType))
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                }
+                Image(systemName: JuiceFormat.mimeSymbol(current.mimeType))
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(palette.onSurfaceVariant)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        palette.surfaceContainerHigh,
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    )
                 VStack(alignment: .leading, spacing: 4) {
                     Text(current.filename.isEmpty ? "Untitled" : current.filename)
                         .font(JuiceFont.body(20, weight: .bold))
                         .foregroundStyle(palette.onSurface)
                         .lineLimit(2)
-                    Text("\(JuiceFormat.bytes(current.sizeBytes)) - \(JuiceFormat.mimeLabel(current.mimeType, filename: current.filename))")
-                        .font(JuiceFont.mono(12))
-                        .foregroundStyle(palette.onSurfaceVariant)
+                    Text(
+                        "\(JuiceFormat.bytes(current.sizeBytes)) - " +
+                        JuiceFormat.mimeLabel(current.mimeType, filename: current.filename)
+                    )
+                    .font(JuiceFont.mono(12))
+                    .foregroundStyle(palette.onSurfaceVariant)
                 }
             }
 
@@ -119,35 +160,23 @@ struct FileDetailView: View {
                 }
             }
         }
-        .padding(.top, 18)
+        .padding(.vertical, 4)
     }
 
     private func badge(_ text: String, icon: String, palette: JuicePalette) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
-            Text(text)
-                .font(JuiceFont.body(11, weight: .semibold))
-        }
-        .foregroundStyle(palette.onSurfaceVariant)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(palette.surfaceContainerHigh, in: Capsule())
+        Label(text, systemImage: icon)
+            .font(JuiceFont.body(11, weight: .semibold))
+            .foregroundStyle(palette.onSurfaceVariant)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(palette.surfaceContainerHigh, in: Capsule())
     }
 
-    private func linksCard(_ palette: JuicePalette) -> some View {
-        SectionCard(palette: palette) {
-            VStack(spacing: 0) {
-                linkRow("Preview", variant: "preview", palette: palette)
-                Divider().overlay(palette.outline.opacity(0.25)).padding(.leading, 16)
-                linkRow("Raw", variant: "raw", palette: palette)
-                Divider().overlay(palette.outline.opacity(0.25)).padding(.leading, 16)
-                linkRow("Download", variant: "download", palette: palette)
-            }
-        }
-    }
-
-    private func linkRow(_ title: String, variant: String, palette: JuicePalette) -> some View {
+    private func linkRow(
+        _ title: String,
+        variant: String,
+        palette: JuicePalette
+    ) -> some View {
         let link = model.link(current, variant: variant)
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
@@ -169,7 +198,7 @@ struct FileDetailView: View {
                     .foregroundStyle(palette.primary)
                     .frame(width: 32, height: 32)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
             if let url = URL(string: link) {
                 ShareLink(item: url) {
                     Image(systemName: "square.and.arrow.up")
@@ -177,18 +206,16 @@ struct FileDetailView: View {
                         .foregroundStyle(palette.primary)
                         .frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 
     @ViewBuilder
-    private func qrCard(_ palette: JuicePalette) -> some View {
+    private func qrSection(_ palette: JuicePalette) -> some View {
         let link = model.link(current, variant: model.settings.linkVariant)
         if let image = qrImage(link) {
-            SectionCard(palette: palette) {
+            Section {
                 VStack(spacing: 12) {
                     Image(uiImage: image)
                         .interpolation(.none)
@@ -196,61 +223,18 @@ struct FileDetailView: View {
                         .scaledToFit()
                         .frame(width: 190, height: 190)
                         .padding(10)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(
+                            Color.white,
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        )
                     Text("Scan to open the \(model.settings.linkVariant) link")
                         .font(JuiceFont.mono(11))
                         .foregroundStyle(palette.onSurfaceVariant)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(18)
+                .padding(.vertical, 6)
             }
-        }
-    }
-
-    private func actions(_ palette: JuicePalette) -> some View {
-        VStack(spacing: 10) {
-            Button {
-                Task {
-                    busy = true
-                    if let updated = await model.refresh(current) {
-                        stored = updated
-                    }
-                    busy = false
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    if busy {
-                        ProgressView().tint(palette.onSurface)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    Text("Refresh info")
-                        .font(JuiceFont.body(15, weight: .semibold))
-                }
-                .foregroundStyle(palette.onSurface)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(palette.surfaceContainerHigh, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(busy)
-
-            Button {
-                confirmDelete = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("Delete file")
-                        .font(JuiceFont.body(15, weight: .semibold))
-                }
-                .foregroundStyle(palette.error)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(palette.error.opacity(0.1), in: Capsule())
-            }
-            .buttonStyle(.plain)
+            .listRowBackground(ListRowSurface(palette: palette))
         }
     }
 

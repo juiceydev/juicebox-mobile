@@ -121,6 +121,9 @@ struct UploadView: View {
         .onChange(of: photoItem) { _, item in
             loadPhoto(item)
         }
+        .onChange(of: mode) { _, value in
+            textFocused = value == .text
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { data in
                 let stamp = Int(Date().timeIntervalSince1970)
@@ -150,13 +153,9 @@ struct UploadView: View {
                 Task { await model.connect() }
             } label: {
                 Text("Retry")
-                    .font(JuiceFont.body(14, weight: .medium))
-                    .foregroundStyle(palette.primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -168,39 +167,74 @@ struct UploadView: View {
     }
 
     private func modePicker(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 12) {
+        Picker("Upload mode", selection: $mode) {
             ForEach(UploadMode.allCases) { item in
-                Button {
-                    mode = item
-                    textFocused = item == .text
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(item.rawValue)
-                            .font(JuiceFont.body(14, weight: mode == item ? .semibold : .medium))
-                        Capsule()
-                            .fill(mode == item ? palette.primary : Color.clear)
-                            .frame(width: 48, height: 3)
-                    }
-                    .foregroundStyle(mode == item ? palette.primary : palette.onSurfaceVariant)
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
+                Text(item.rawValue).tag(item)
             }
         }
+        .pickerStyle(.segmented)
+        .tint(palette.primary)
         .padding(.horizontal, 20)
     }
 
-    private func retention(_ palette: JuicePalette) -> some View {
-        RetentionSlider(
-            options: model.ttlOptions,
-            minutes: model.selectedMinutes,
-            palette: palette,
-            haptics: model.settings.haptics
-        ) { minutes in
-            model.selectedMinutes = minutes
-            model.setLastTtl(minutes)
+    private var ttlIndex: Int {
+        let options = model.ttlOptions
+        if let exact = options.firstIndex(where: { $0.minutes == model.selectedMinutes }) {
+            return exact
         }
-        .padding(.horizontal, 20)
+        return options.indices.min(by: {
+            abs(options[$0].minutes - model.selectedMinutes) <
+            abs(options[$1].minutes - model.selectedMinutes)
+        }) ?? 0
+    }
+
+    @ViewBuilder
+    private func retention(_ palette: JuicePalette) -> some View {
+        let options = model.ttlOptions
+        if !options.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Retention")
+                        .font(JuiceFont.body(14, weight: .medium))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                    Spacer(minLength: 8)
+                    Text(TtlFormat.label(minutes: options[ttlIndex].minutes))
+                        .font(JuiceFont.body(16, weight: .medium))
+                        .foregroundStyle(palette.primary)
+                }
+                Slider(
+                    value: Binding(
+                        get: { Double(ttlIndex) },
+                        set: { raw in
+                            let next = Int(raw.rounded())
+                            guard next != ttlIndex, options.indices.contains(next) else { return }
+                            model.selectedMinutes = options[next].minutes
+                            model.setLastTtl(options[next].minutes)
+                        }
+                    ),
+                    in: 0...Double(max(1, options.count - 1)),
+                    step: 1
+                ) {
+                    Text("Retention")
+                } minimumValueLabel: {
+                    Text(options.first?.label ?? "")
+                        .font(JuiceFont.body(10))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                } maximumValueLabel: {
+                    Text(options.last?.label ?? "")
+                        .font(JuiceFont.body(10))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                }
+                .labelsHidden()
+                .tint(palette.primary)
+                .sensoryFeedback(
+                    .selection,
+                    trigger: model.selectedMinutes,
+                    condition: { _, _ in model.settings.haptics }
+                )
+            }
+            .padding(.horizontal, 20)
+        }
     }
 
     @ViewBuilder
@@ -221,63 +255,51 @@ struct UploadView: View {
     }
 
     private func dropZoneLabel(_ palette: JuicePalette, icon: String, title: String) -> some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 36, weight: .regular))
-                .foregroundStyle(palette.primary)
-            Text(title)
-                .font(JuiceFont.body(22, weight: .semibold))
-                .foregroundStyle(palette.onSurface)
+        ContentUnavailableView {
+            Label(title, systemImage: icon)
+        } description: {
             Text("Tap to browse")
-                .font(JuiceFont.body(14))
-                .foregroundStyle(palette.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 210)
-        .background {
-            ZStack {
-                palette.surfaceContainerLow
-                DropZoneStripes(color: palette.primary.opacity(0.02))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        }
+        .background(
+            palette.surfaceContainerLow,
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(
-                    palette.primary.opacity(0.55),
-                    style: StrokeStyle(lineWidth: 1.4, dash: [7, 6])
+                    palette.primary.opacity(0.45),
+                    style: StrokeStyle(lineWidth: 1.2, dash: [7, 6])
                 )
         )
         .padding(.horizontal, 20)
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func actionRow(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 8) {
-            ActionChip(icon: "folder", title: "Files", palette: palette) {
+        HStack(spacing: 10) {
+            Button {
                 showFileImporter = true
+            } label: {
+                Label("Files", systemImage: "folder")
+                    .frame(maxWidth: .infinity)
             }
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
-                pickerLabel("photo.on.rectangle", title: "Photos", palette: palette)
+                Label("Photos", systemImage: "photo.on.rectangle")
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
-            ActionChip(icon: "camera", title: "Camera", palette: palette) {
+            Button {
                 openCamera()
+            } label: {
+                Label("Camera", systemImage: "camera")
+                    .frame(maxWidth: .infinity)
             }
         }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .tint(palette.primary)
         .padding(.horizontal, 20)
-    }
-
-    private func pickerLabel(_ icon: String, title: String, palette: JuicePalette) -> some View {
-        HStack(spacing: 7) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-            Text(title)
-                .font(JuiceFont.body(14, weight: .semibold))
-        }
-        .foregroundStyle(palette.onSurface)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 13)
-        .background(palette.surfaceContainerHigh, in: Capsule())
     }
 
     private func openCamera() {
@@ -307,11 +329,11 @@ struct UploadView: View {
                 .frame(minHeight: 220)
         }
         .background(
-            palette.surfaceContainer,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            palette.surfaceContainerLow,
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(
                     textFocused ? palette.primary : palette.outline.opacity(0.5),
                     lineWidth: textFocused ? 1.6 : 1
@@ -331,48 +353,41 @@ struct UploadView: View {
                 text = ""
                 textFocused = false
             } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
-                    Text("Save text")
-                        .font(JuiceFont.body(15, weight: .semibold))
-                }
-                .foregroundStyle(palette.onPrimary)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(palette.primary, in: Capsule())
+                Label("Save text", systemImage: "checkmark")
             }
-            .buttonStyle(.plain)
-            .disabled(model.isUploading || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .opacity(model.isUploading || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .tint(palette.primary)
+            .disabled(
+                model.isUploading ||
+                text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
         }
         .padding(.horizontal, 20)
     }
 
     private func progressCard(_ palette: JuicePalette) -> some View {
-        SectionCard(palette: palette) {
+        GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Uploading")
-                        .font(JuiceFont.body(14, weight: .semibold))
-                        .foregroundStyle(palette.onSurface)
-                    Spacer()
-                    Text("\(Int(model.uploadProgress * 100))%")
-                        .font(JuiceFont.mono(13, weight: .bold))
-                        .foregroundStyle(palette.primary)
-                }
                 ProgressView(value: model.uploadProgress)
                     .tint(palette.primary)
                     .animation(.linear(duration: 0.2), value: model.uploadProgress)
+                Text("\(Int(model.uploadProgress * 100))%")
+                    .font(JuiceFont.mono(13, weight: .bold))
+                    .foregroundStyle(palette.primary)
             }
-            .padding(18)
+            .padding(.top, 4)
+        } label: {
+            Label("Uploading", systemImage: "arrow.up.circle")
+                .font(JuiceFont.body(14, weight: .semibold))
+                .foregroundStyle(palette.onSurface)
         }
         .padding(.horizontal, 20)
     }
 
     private func resultCard(_ file: LibraryFile, _ palette: JuicePalette) -> some View {
         let link = model.link(file, variant: model.settings.linkVariant)
-        return SectionCard(palette: palette) {
+        return GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill")
@@ -396,50 +411,38 @@ struct UploadView: View {
                     Button {
                         model.copy(link)
                     } label: {
-                        resultAction("Copy", icon: "doc.on.doc", palette: palette)
+                        Label("Copy", systemImage: "doc.on.doc")
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.plain)
-
                     if let url = URL(string: link) {
                         ShareLink(item: url) {
-                            resultAction("Share", icon: "square.and.arrow.up", palette: palette)
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let url = URL(string: link) {
                         Link(destination: url) {
-                            resultAction("Open", icon: "arrow.up.right", palette: palette)
+                            Label("Open", systemImage: "arrow.up.right")
+                                .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .padding(18)
+            .padding(.top, 4)
+        } label: {
+            Label("Uploaded", systemImage: "checkmark.circle")
+                .font(JuiceFont.body(14, weight: .semibold))
+                .foregroundStyle(palette.onSurface)
         }
         .padding(.horizontal, 20)
     }
 
-    private func resultAction(_ title: String, icon: String, palette: JuicePalette) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-            Text(title)
-                .font(JuiceFont.body(12, weight: .semibold))
-        }
-        .foregroundStyle(palette.onSurface)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(palette.surfaceContainerHigh, in: Capsule())
-    }
-
     private func lockNote(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 7) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 11))
-            Text("Uploads are password-protected from this device")
-                .font(JuiceFont.body(12))
-        }
+        Label(
+            "Uploads are password-protected from this device",
+            systemImage: "lock.fill"
+        )
+        .font(JuiceFont.body(12))
         .foregroundStyle(palette.onSurfaceVariant)
         .padding(.horizontal, 20)
     }
@@ -463,30 +466,6 @@ struct UploadView: View {
             }
         }
         photoItem = nil
-    }
-}
-
-/// The site's -45 degree stripes, painted faintly behind the drop zone.
-private struct DropZoneStripes: View {
-    let color: Color
-
-    var body: some View {
-        Canvas { context, size in
-            let period: CGFloat = 15
-            let band = period * 0.42
-            let span = (size.width + size.height) * 1.6
-            context.translateBy(x: size.width / 2, y: size.height / 2)
-            context.rotate(by: .degrees(-45))
-            context.translateBy(x: -size.width / 2, y: -size.height / 2)
-            var x = -span
-            while x < span {
-                let rect = CGRect(x: x, y: -span, width: band, height: span * 2)
-                context.fill(Path(rect), with: .color(color))
-                x += period
-            }
-        }
-        .clipped()
-        .allowsHitTesting(false)
     }
 }
 

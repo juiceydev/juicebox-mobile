@@ -39,6 +39,22 @@ extension View {
     }
 }
 
+/// A grouped-list row surface. Solid while Liquid Glass is off; the system
+/// glass material behind the row while it is on.
+struct ListRowSurface: View {
+    let palette: JuicePalette
+    @Environment(\.juiceGlass) private var glass
+
+    var body: some View {
+        if glass, #available(iOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular, in: Rectangle())
+        } else {
+            palette.surfaceContainerLow
+        }
+    }
+}
+
 enum AppTab: String, Hashable {
     case upload
     case files
@@ -99,45 +115,12 @@ struct AnnouncementBar: View {
             .foregroundStyle(palette.onSurface)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(palette.success.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(
+                palette.success.opacity(0.14),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
         }
         .buttonStyle(.plain)
-    }
-}
-
-struct SectionCard<Content: View>: View {
-    let palette: JuicePalette
-    @Environment(\.juiceGlass) private var glass
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            content
-        }
-        .background {
-            if !glass {
-                // Some palettes (Juicebox light) reuse the background colour for
-                // surfaceContainer, so solid cards need the next step up to stay
-                // visible once the glass material is gone.
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(palette.surfaceContainerHigh)
-            }
-        }
-        .juiceGlass(enabled: glass)
-    }
-}
-
-struct SectionLabel: View {
-    let text: String
-    let palette: JuicePalette
-
-    var body: some View {
-        Text(text.uppercased())
-            .font(JuiceFont.mono(11, weight: .bold))
-            .tracking(1)
-            .foregroundStyle(palette.onSurfaceVariant)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
     }
 }
 
@@ -160,29 +143,6 @@ struct ExpiryBar: View {
     }
 }
 
-struct ActionChip: View {
-    let icon: String
-    let title: String
-    let palette: JuicePalette
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(title)
-                    .font(JuiceFont.body(14, weight: .semibold))
-            }
-            .foregroundStyle(palette.onSurface)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .background(palette.surfaceContainerHigh, in: Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 struct ToastView: View {
     let message: String
     let palette: JuicePalette
@@ -196,29 +156,5 @@ struct ToastView: View {
             .background(palette.onSurface, in: Capsule())
             .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
             .padding(.top, 8)
-    }
-}
-
-struct JuiceEmptyState: View {
-    let icon: String
-    let title: String
-    let detail: String
-    let palette: JuicePalette
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(palette.primary)
-            Text(title)
-                .font(JuiceFont.body(17, weight: .semibold))
-                .foregroundStyle(palette.onSurface)
-            Text(detail)
-                .font(JuiceFont.body(13))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(palette.onSurfaceVariant)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 44)
     }
 }

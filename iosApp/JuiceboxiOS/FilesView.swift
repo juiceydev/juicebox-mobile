@@ -6,12 +6,7 @@ struct FilesView: View {
     @Environment(\.colorScheme) private var scheme
 
     @State private var query = ""
-    @State private var selected: SelectedFile?
-
-    private struct SelectedFile: Identifiable {
-        let id: String
-        let file: LibraryFile
-    }
+    @State private var path: [String] = []
 
     private var filtered: [LibraryFile] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
@@ -27,110 +22,67 @@ struct FilesView: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header(palette)
-                searchField(palette)
-
+        NavigationStack(path: $path) {
+            List {
+                Section {
+                    ForEach(filtered, id: \.localId) { file in
+                        NavigationLink(value: file.localId) {
+                            FileRow(file: file, palette: palette)
+                        }
+                        .listRowBackground(ListRowSurface(palette: palette))
+                    }
+                } footer: {
+                    if !model.files.isEmpty {
+                        Text("\(model.files.count) files - \(JuiceFormat.bytes(totalBytes))")
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(palette.background.ignoresSafeArea())
+            .tint(palette.primary)
+            .navigationTitle("Files")
+            .searchable(
+                text: $query,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search"
+            )
+            .navigationDestination(for: String.self) { id in
+                if let file = model.files.first(where: { $0.localId == id }) {
+                    FileDetailView(file: file)
+                }
+            }
+            .overlay {
                 if filtered.isEmpty {
                     if model.files.isEmpty {
-                        JuiceEmptyState(
-                            icon: "shippingbox",
-                            title: "Nothing here yet",
-                            detail: "Upload a file and it will show up in this library.",
-                            palette: palette
+                        ContentUnavailableView(
+                            "Nothing here yet",
+                            systemImage: "shippingbox",
+                            description: Text(
+                                "Upload a file and it will show up in this library."
+                            )
                         )
                     } else {
-                        JuiceEmptyState(
-                            icon: "magnifyingglass",
-                            title: "No matches",
-                            detail: "No files named \"\(query)\".",
-                            palette: palette
-                        )
+                        ContentUnavailableView.search(text: query)
                     }
-                } else {
-                    LazyVStack(spacing: 0) {
-                        ForEach(filtered, id: \.localId) { file in
-                            Button {
-                                selected = SelectedFile(id: file.localId, file: file)
-                            } label: {
-                                FileRow(file: file, palette: palette)
-                            }
-                            .buttonStyle(.plain)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                            if file.localId != filtered.last?.localId {
-                                Divider()
-                                    .overlay(palette.outline.opacity(0.25))
-                                    .padding(.leading, 74)
-                            }
-                        }
-                    }
-                    .animation(.snappy(duration: 0.28), value: filtered.map(\.localId))
-                    .padding(.bottom, 12)
                 }
             }
-            .padding(.bottom, 24)
-        }
-        .refreshable {
-            await model.refreshLibrary()
-        }
-        .onAppear {
-            guard selected == nil,
-                  ProcessInfo.processInfo.environment["JUICEBOX_START_FILE"] == "1" else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                guard selected == nil, let file = model.files.first else { return }
-                selected = SelectedFile(id: file.localId, file: file)
+            .refreshable {
+                await model.refreshLibrary()
             }
-        }
-        .background(palette.background.ignoresSafeArea())
-        .scrollDismissesKeyboard(.interactively)
-        .sheet(item: $selected) { item in
-            FileDetailView(file: item.file)
-                .environmentObject(model)
+            .onAppear(perform: openStartFileIfNeeded)
         }
     }
 
-    private func header(_ palette: JuicePalette) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Files")
-                .font(JuiceFont.body(36))
-                .foregroundStyle(palette.onSurface)
-            Text("\(model.files.count) files - \(JuiceFormat.bytes(totalBytes))")
-                .font(JuiceFont.body(13))
-                .foregroundStyle(palette.onSurfaceVariant)
+    /// Screenshot runs can open the first file with
+    /// SIMCTL_CHILD_JUICEBOX_START_FILE=1.
+    private func openStartFileIfNeeded() {
+        guard path.isEmpty,
+              ProcessInfo.processInfo.environment["JUICEBOX_START_FILE"] == "1" else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard path.isEmpty, let file = model.files.first else { return }
+            path = [file.localId]
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-    }
-
-    private func searchField(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(palette.onSurfaceVariant)
-            TextField("Search", text: $query)
-                .font(JuiceFont.body(16))
-                .foregroundStyle(palette.onSurface)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(palette.onSurfaceVariant)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 56)
-        .background(palette.background, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(palette.outline, lineWidth: 1)
-        )
-        .padding(.horizontal, 20)
     }
 }
 
@@ -149,14 +101,14 @@ struct FileRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(palette.surfaceContainerHigh)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: JuiceFormat.mimeSymbol(file.mimeType))
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                }
+                Image(systemName: JuiceFormat.mimeSymbol(file.mimeType))
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(palette.onSurfaceVariant)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        palette.surfaceContainerHigh,
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    )
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(file.filename.isEmpty ? "Untitled" : file.filename)
@@ -168,10 +120,6 @@ struct FileRow: View {
                         .foregroundStyle(isFailed ? palette.error : palette.onSurfaceVariant)
                         .lineLimit(1)
                 }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(palette.outline)
             }
 
             if !isFailed && !isPending && file.expiresAt > 0 {
@@ -186,9 +134,7 @@ struct FileRow: View {
                 .padding(.leading, 56)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 13)
-        .contentShape(Rectangle())
+        .padding(.vertical, 4)
     }
 
     private var meta: String {
