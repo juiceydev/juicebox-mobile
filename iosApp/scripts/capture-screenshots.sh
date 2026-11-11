@@ -65,8 +65,8 @@ xcrun simctl status_bar "$UDID" override \
 xcrun simctl install "$UDID" "$APP"
 
 shoot() {
-  local appearance="$1" tab="$2" glass="$3" page="${4:-}"
-  local suffix=""
+  local appearance="$1" tab="$2" glass="$3" page="${4:-}" suffix="${5:-}"
+  local demo="${6:-0}" mode="${7:-}" dialog="${8:-}" file="${9:-0}"
   [[ "$glass" == "0" ]] && suffix="-no-glass"
   [[ -n "$page" ]] && suffix="$suffix-$page"
   local name="$appearance-$tab$suffix.png"
@@ -77,6 +77,10 @@ shoot() {
   SIMCTL_CHILD_JUICEBOX_START_TAB="$tab" \
   SIMCTL_CHILD_JUICEBOX_START_PAGE="$page" \
   SIMCTL_CHILD_JUICEBOX_LIQUID_GLASS="$glass" \
+  SIMCTL_CHILD_JUICEBOX_DEMO_LIBRARY="$demo" \
+  SIMCTL_CHILD_JUICEBOX_UPLOAD_MODE="$mode" \
+  SIMCTL_CHILD_JUICEBOX_START_DIALOG="$dialog" \
+  SIMCTL_CHILD_JUICEBOX_START_FILE="$file" \
     xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
 
   # Give SwiftUI a beat to settle, plus the first library fetch.
@@ -86,13 +90,24 @@ shoot() {
 }
 
 for appearance in light dark; do
-  for tab in upload files settings; do
-    shoot "$appearance" "$tab" 1
+  shoot "$appearance" upload 1
+  shoot "$appearance" upload 1 "" "-media" 0 media
+  shoot "$appearance" upload 1 "" "-text" 0 text
+  shoot "$appearance" files 1
+  shoot "$appearance" files 1 "" "-list" 1
+  shoot "$appearance" files 1 "" "-detail" 1 "" "" 1
+  shoot "$appearance" settings 1
+  # Settings is a drill-down; capture every page, with content where it helps.
+  for page in server storage appearance uploads links library about session; do
+    demo=0
+    [[ "$page" == "library" ]] && demo=1
+    shoot "$appearance" settings 1 "$page" "" "$demo"
   done
-  # Settings is a drill-down now; capture the pages that changed most.
-  for page in server storage appearance uploads library; do
-    shoot "$appearance" settings 1 "$page"
-  done
+  # Every settings dialog, opened over its host page.
+  shoot "$appearance" settings 1 uploads "-dialog-share" 0 "" share
+  shoot "$appearance" settings 1 uploads "-dialog-password" 0 "" password
+  shoot "$appearance" settings 1 library "-dialog-clear" 1 "" clear
+  shoot "$appearance" settings 1 session "-dialog-forget" 0 "" forget
 done
 
 # The Liquid Glass toggle itself: same two screens with glass off.

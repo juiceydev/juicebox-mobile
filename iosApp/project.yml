@@ -59,3 +59,27 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         TARGETED_DEVICE_FAMILY: "1"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../../Frameworks"
+  JuiceboxUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: JuiceboxUITests
+    dependencies:
+      - target: Juicebox
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.juicey.juicebox.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Juicebox
+
+schemes:
+  Juicebox:
+    build:
+      targets:
+        Juicebox: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - JuiceboxUITests

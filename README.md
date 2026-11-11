@@ -62,10 +62,13 @@ iOS 17 and the bundle id is `dev.juicey.juicebox`.
 
 `.github/workflows/ios.yml` builds the simulator app on a macOS runner and
 publishes `Juicebox-simulator.zip` as an artifact. The same workflow launches
-the app on a simulator and uploads light and dark screenshots of Upload, Files,
-Settings and its main subpages as `Juicebox-screenshots`; the capture script
-lives at `iosApp/scripts/capture-screenshots.sh` and starts each run on the
-right tab or settings page with launch environment variables.
+the app on a simulator and uploads light and dark screenshots of every screen
+to `Juicebox-screenshots`: each upload mode, the files list and file detail,
+every settings page, and every settings dialog. The capture script lives at
+`iosApp/scripts/capture-screenshots.sh` and starts each run on the right tab,
+page, mode or dialog with launch environment variables. A separate UI-test job
+drives the Dynamic Island, so the same artifact also has the Live Activity
+compact, expanded and in Notification Centre.
 `.github/workflows/ios-device.yml` builds an unsigned device IPA for
 sideloading; see [`docs/test-on-device.md`](docs/test-on-device.md) for signing
 it with a free Apple ID. Device and TestFlight builds

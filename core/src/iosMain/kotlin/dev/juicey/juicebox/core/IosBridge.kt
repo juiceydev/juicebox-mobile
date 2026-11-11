@@ -156,6 +156,43 @@ class IosBridge(version: String) {
 
     fun storageHosts(): List<StorageHost> = StorageHosts.official
 
+    /**
+     * Fixture rows for the screenshot workflow. The app only asks for these
+     * when it was launched with JUICEBOX_DEMO_LIBRARY=1.
+     */
+    fun screenshotFiles(): List<LibraryFile> {
+        val now = nowEpochSeconds()
+        val day = 86_400L
+        val server = core.currentServer()
+        fun demo(
+            id: String,
+            name: String,
+            mime: String,
+            size: Long,
+            expiresIn: Long,
+        ) = LibraryFile(
+            localId = id,
+            id = id,
+            filename = name,
+            mimeType = mime,
+            sizeBytes = size,
+            uploadedAt = now - 120,
+            expiresAt = now + expiresIn,
+            url = "$server/f/$id",
+            rawUrl = "$server/f/$id",
+            downloadUrl = "$server/d/$id",
+            deleteToken = "demo-$id",
+            status = "ready",
+            server = server,
+        )
+        return listOf(
+            demo("demo-video", "launch-teaser.mp4", "video/mp4", 48_233_472, 3 * day),
+            demo("demo-image", "screenshot.png", "image/png", 2_411_724, day),
+            demo("demo-audio", "song-demo.mp3", "audio/mpeg", 6_291_456, 7 * day),
+            demo("demo-pdf", "notes.pdf", "application/pdf", 214_528, 12 * 3_600L),
+        )
+    }
+
     fun communityHosts(completion: (List<StorageHost>?, String?) -> Unit) =
         runWith(completion) {
             core.api.communityHosts()

@@ -39,6 +39,10 @@ final class AppModel: ObservableObject {
         self.selectedMinutes = bridge.defaultTtlMinutes()
         self.announcement = nil
 
+        if Self.demoLibrary {
+            self.files = bridge.screenshotFiles()
+        }
+
         // Screenshot runs pin the glass setting so light/dark captures are
         // reproducible; a normal launch keeps whatever Settings stored.
         if let glass = ProcessInfo.processInfo.environment["JUICEBOX_LIQUID_GLASS"] {
@@ -49,11 +53,23 @@ final class AppModel: ObservableObject {
             }
         }
 
+        // Screenshot runs can also pin a live upload for the Dynamic Island
+        // captures. This never runs in a normal launch.
+        if ProcessInfo.processInfo.environment["JUICEBOX_DEMO_UPLOAD"] == "1" {
+            LiveUploadActivity.shared.start(
+                filename: "launch-teaser.mp4",
+                totalBytes: 48_233_472,
+                server: URL(string: self.settings.serverUrl)?.host ?? "juicey.dev"
+            )
+            LiveUploadActivity.shared.report(progress: 0.62)
+        }
+
         subscriptions.append(bridge.observeSettings { [weak self] value in
             self?.settings = value
         })
         subscriptions.append(bridge.observeLibrary { [weak self] value in
-            self?.files = value
+            guard let self, !Self.demoLibrary else { return }
+            self.files = value
         })
         subscriptions.append(bridge.observeConnection { [weak self] value in
             self?.connection = value
@@ -80,6 +96,12 @@ final class AppModel: ObservableObject {
     deinit {
         subscriptions.forEach { $0.cancel() }
         toastTask?.cancel()
+    }
+
+    /// Screenshot runs seed a few rows so the Files and Library screens have
+    /// content without touching the network or the real library.
+    private static var demoLibrary: Bool {
+        ProcessInfo.processInfo.environment["JUICEBOX_DEMO_LIBRARY"] == "1"
     }
 
     // MARK: - Theme

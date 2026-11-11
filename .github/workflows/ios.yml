@@ -75,9 +75,73 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  island:
+    name: Dynamic Island screenshots
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: iosApp
+        run: xcodegen generate
+
+      - name: Run Dynamic Island UI test
+        working-directory: iosApp
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Juicebox.xcodeproj \
+            -scheme Juicebox \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -derivedDataPath build \
+            -resultBundlePath island.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export screenshots
+        run: |
+          python3 iosApp/scripts/export-xcresult-screenshots.py \
+            iosApp/island.xcresult island-shots
+
+      - name: Upload Dynamic Island screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: Juicebox-island-screenshots
+          path: island-shots/*.png
+          if-no-files-found: error
+          retention-days: 14
+
   screenshots:
     name: Screenshots
-    needs: build
+    needs: [build, island]
+    if: always() && needs.build.result == 'success'
     runs-on: macos-15
     timeout-minutes: 60
 
@@ -94,6 +158,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Juicebox-simulator
+
+      - name: Download Dynamic Island screenshots
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: Juicebox-island-screenshots
+          path: screenshots
 
       - name: Capture screenshots
         run: |

@@ -72,6 +72,14 @@ struct FilesView: View {
         .refreshable {
             await model.refreshLibrary()
         }
+        .onAppear {
+            guard selected == nil,
+                  ProcessInfo.processInfo.environment["JUICEBOX_START_FILE"] == "1" else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                guard selected == nil, let file = model.files.first else { return }
+                selected = SelectedFile(id: file.localId, file: file)
+            }
+        }
         .background(palette.background.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
         .sheet(item: $selected) { item in

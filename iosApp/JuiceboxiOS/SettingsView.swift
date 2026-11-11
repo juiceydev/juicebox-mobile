@@ -47,11 +47,24 @@ struct SettingsView: View {
     }
 
     /// Screenshot runs can launch straight onto a subpage with
-    /// SIMCTL_CHILD_JUICEBOX_START_PAGE.
+    /// SIMCTL_CHILD_JUICEBOX_START_PAGE, and open a dialog with
+    /// SIMCTL_CHILD_JUICEBOX_START_DIALOG.
     init() {
-        let start = ProcessInfo.processInfo.environment["JUICEBOX_START_PAGE"]
+        let environment = ProcessInfo.processInfo.environment
+        let start = environment["JUICEBOX_START_PAGE"]
             .flatMap { SettingsPage(rawValue: $0) }
         _page = State(initialValue: start)
+        _dialog = State(initialValue: SettingsView.dialog(named: environment["JUICEBOX_START_DIALOG"]))
+    }
+
+    private static func dialog(named raw: String?) -> SettingsDialog? {
+        switch raw {
+        case "share": return .share
+        case "password": return .password
+        case "forget": return .forget
+        case "clear": return .clear
+        default: return nil
+        }
     }
 
     var body: some View {

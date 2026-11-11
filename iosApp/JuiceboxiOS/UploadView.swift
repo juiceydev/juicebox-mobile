@@ -23,6 +23,15 @@ struct UploadView: View {
         var id: String { rawValue }
     }
 
+    /// Screenshot runs can start on a specific mode with
+    /// SIMCTL_CHILD_JUICEBOX_UPLOAD_MODE.
+    init() {
+        if let raw = ProcessInfo.processInfo.environment["JUICEBOX_UPLOAD_MODE"],
+           let start = UploadMode(rawValue: raw.capitalized) {
+            _mode = State(initialValue: start)
+        }
+    }
+
     var body: some View {
         let palette = model.palette(scheme)
         ScrollView {
