@@ -80,7 +80,7 @@ struct FileDetailView: View {
                         .font(JuiceFont.body(20, weight: .bold))
                         .foregroundStyle(palette.onSurface)
                         .lineLimit(2)
-                    Text("\(JuiceFormat.bytes(current.sizeBytes)) · \(JuiceFormat.mimeLabel(current.mimeType, filename: current.filename))")
+                    Text("\(JuiceFormat.bytes(current.sizeBytes)) - \(JuiceFormat.mimeLabel(current.mimeType, filename: current.filename))")
                         .font(JuiceFont.mono(12))
                         .foregroundStyle(palette.onSurfaceVariant)
                 }

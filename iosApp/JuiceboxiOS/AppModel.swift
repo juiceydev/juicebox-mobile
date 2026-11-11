@@ -213,7 +213,7 @@ final class AppModel: ObservableObject {
         let attributes = try? FileManager.default.attributesOfItem(atPath: path)
         let size = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
         if let max = config?.maxFileSizeBytes, max > 0, size > max {
-            flash("Too large — this server allows \(JuiceFormat.bytes(max))")
+            flash("Too large - this server allows \(JuiceFormat.bytes(max))")
             return
         }
         guard beginUpload(filename: filename, size: size) else { return }

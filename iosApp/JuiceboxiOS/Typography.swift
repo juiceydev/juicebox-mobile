@@ -17,12 +17,12 @@ enum JuiceFont {
     }
 }
 
-/// "JUICEBOX²" in the pixel face with the box icon's black keyline.
+/// "JUICEBOX2" in the pixel face with the box icon's black keyline.
 struct TitleWordmark: View {
     var size: CGFloat = 28
     var color: Color
 
-    private static let text = "JUICEBOX\u{00B2}"
+    private static let text = "JUICEBOX2"
 
     var body: some View {
         let outline = max(1, size * 0.055)

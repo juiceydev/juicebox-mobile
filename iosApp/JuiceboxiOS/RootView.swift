@@ -8,17 +8,19 @@ struct RootView: View {
 
     var body: some View {
         let palette = model.palette(scheme)
-        Group {
-            switch tab {
-            case .upload: UploadView()
-            case .files: FilesView()
-            case .settings: SettingsView()
-            }
+        TabView(selection: $tab) {
+            UploadView()
+                .tag(AppTab.upload)
+                .tabItem { Label("Upload", systemImage: "arrow.up.doc") }
+            FilesView()
+                .tag(AppTab.files)
+                .tabItem { Label("Files", systemImage: "folder") }
+            SettingsView()
+                .tag(AppTab.settings)
+                .tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            JuiceTabBar(selection: $tab, palette: palette) { _ in
-                model.haptic()
-            }
+        .onChange(of: tab) { _, _ in
+            model.haptic()
         }
         .background(palette.background.ignoresSafeArea())
         .tint(palette.primary)

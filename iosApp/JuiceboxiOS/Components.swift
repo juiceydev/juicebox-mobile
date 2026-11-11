@@ -105,60 +105,6 @@ struct AnnouncementBar: View {
     }
 }
 
-struct JuiceTabBar: View {
-    @Binding var selection: AppTab
-    let palette: JuicePalette
-    var onSelect: (AppTab) -> Void = { _ in }
-
-    @Environment(\.juiceGlass) private var glass
-
-    var body: some View {
-        HStack(spacing: 6) {
-            tab(.upload, icon: "arrow.up.doc", title: "Upload")
-            tab(.files, icon: "folder", title: "Files")
-            tab(.settings, icon: "slider.horizontal.3", title: "Settings")
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-        .background {
-            if !glass {
-                palette.background
-            }
-        }
-        .juiceGlass(enabled: glass, radius: 0)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(palette.outline.opacity(glass ? 0.12 : 0.25))
-                .frame(height: 1)
-        }
-    }
-
-    private func tab(_ tab: AppTab, icon: String, title: String) -> some View {
-        let selected = selection == tab
-        return Button {
-            guard !selected else { return }
-            selection = tab
-            onSelect(tab)
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
-                Text(title)
-                    .font(JuiceFont.body(11, weight: .semibold))
-            }
-            .foregroundStyle(selected ? palette.primary : palette.onSurfaceVariant)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-            .background(
-                selected ? palette.primary.opacity(0.12) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 struct SectionCard<Content: View>: View {
     let palette: JuicePalette
     @Environment(\.juiceGlass) private var glass

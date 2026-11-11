@@ -393,7 +393,6 @@ struct SettingsView: View {
                 SettingsGroup(palette: palette) {
                     SettingsToggleRow(
                         title: "Liquid Glass",
-                        detail: "Translucent cards and tab bar (iOS 26).",
                         isOn: model.settings.liquidGlass,
                         palette: palette
                     ) {

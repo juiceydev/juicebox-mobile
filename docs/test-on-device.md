@@ -63,7 +63,7 @@ Run these on the phone before calling a build good.
 
 | Check | Where to look | Passes when |
 | --- | --- | --- |
-| Liquid Glass | Settings → Appearance | On iOS 26 the toggle exists and the cards/tab bar go translucent; turning it off restores solid surfaces. On iOS 17-25 the row is hidden and the app looks unchanged. |
+| Liquid Glass | Settings → Appearance | On iOS 26 the toggle exists and the cards go translucent; turning it off restores solid surfaces. The bottom bar is always the system Liquid Glass tab bar. On iOS 17-25 the row is hidden and the app looks unchanged. |
 | Dynamic Island | Start an upload, then leave the app | Island device: compact leading icon plus live percentage; long-press expands to filename, byte counts and a progress bar. No-island device: the same activity shows on the Lock Screen. |
 | Live Activity in Notification Centre | Start an upload, pull down Notification Centre | The upload card is listed with its progress and updates while the upload runs. |
 | Shortcuts action | Shortcuts app → search "Juicebox" | "Upload to Juicebox" appears under the app's actions, takes a file input, and returns a share link. `Upload text to Juicebox` does the same for a string. |

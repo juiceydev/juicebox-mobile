@@ -74,7 +74,8 @@ none are configured yet.
 
 Themes are the five static palettes (Juicebox, Violet, Ocean, Forest, Rose);
 Material You is Android-only. On iOS 26 a Liquid Glass toggle switches the
-cards and tab bar to molten surfaces, and folds away on older systems.
+cards to molten surfaces, while the bottom bar is the system Liquid Glass tab
+bar on every launch. The toggle folds away on older systems.
 
 An upload drives an ActivityKit Live Activity — Lock Screen, Notification
 Centre and Dynamic Island, with compact, minimal and expanded presentations.

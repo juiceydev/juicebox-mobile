@@ -84,13 +84,13 @@ fun TitleWordmark(
     )
     Box(modifier) {
         Text(
-            text = "JUICEBOX\u00B2",
+            text = "JUICEBOX2",
             style = base.copy(drawStyle = Stroke(width = outline)),
             color = Color.Black,
             maxLines = 1,
         )
         Text(
-            text = "JUICEBOX\u00B2",
+            text = "JUICEBOX2",
             style = base,
             color = color,
             maxLines = 1,

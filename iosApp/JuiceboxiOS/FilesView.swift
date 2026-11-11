@@ -85,7 +85,7 @@ struct FilesView: View {
             Text("Files")
                 .font(JuiceFont.body(36))
                 .foregroundStyle(palette.onSurface)
-            Text("\(model.files.count) files · \(JuiceFormat.bytes(totalBytes))")
+            Text("\(model.files.count) files - \(JuiceFormat.bytes(totalBytes))")
                 .font(JuiceFont.body(13))
                 .foregroundStyle(palette.onSurfaceVariant)
         }
@@ -189,6 +189,6 @@ struct FileRow: View {
         let size = JuiceFormat.bytes(file.sizeBytes)
         let kind = JuiceFormat.mimeLabel(file.mimeType, filename: file.filename)
         let left = JuiceFormat.timeLeft(expiresAt: file.expiresAt)
-        return "\(size) · \(kind) · \(left)"
+        return "\(size) - \(kind) - \(left)"
     }
 }
