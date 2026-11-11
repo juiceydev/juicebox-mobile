@@ -108,7 +108,7 @@ struct FileDetailView: View {
             }
 
             HStack(spacing: 8) {
-                if current.protected {
+                if model.isLocked(current) {
                     badge("Locked", icon: "lock.fill", palette: palette)
                 }
                 if current.isEncrypted {

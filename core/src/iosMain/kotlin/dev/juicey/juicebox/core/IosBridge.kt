@@ -55,6 +55,9 @@ class IosBridge(version: String) {
 
     fun currentConnection(): ConnectionState = core.connection.value
 
+    /** The Kotlin property is named `protected`, which does not survive the ObjC export. */
+    fun isLocked(file: LibraryFile): Boolean = file.protected
+
     fun ttlOptions(): List<IosTtlOption> {
         val hours = core.config.value?.allowedTtlHours ?: FALLBACK_TTL_HOURS
         return hours.map { IosTtlOption((it * 60).roundToInt(), ttlLabel(it)) }

@@ -188,7 +188,7 @@ final class AppModel: ObservableObject {
             text: text,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                self?.uploadProgress = value
+                self?.uploadProgress = value.doubleValue
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
@@ -210,7 +210,7 @@ final class AppModel: ObservableObject {
             mimeType: mime,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                self?.uploadProgress = value
+                self?.uploadProgress = value.doubleValue
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
@@ -267,6 +267,8 @@ final class AppModel: ObservableObject {
             }
         }
     }
+
+    func isLocked(_ file: LibraryFile) -> Bool { bridge.isLocked(file: file) }
 
     func link(_ file: LibraryFile, variant: String) -> String {
         switch variant {
