@@ -282,7 +282,7 @@ struct UploadView: View {
         if glass, #available(iOS 26.0, *) {
             Color.clear
                 .glassEffect(
-                    .regular,
+                    .regular.tint(palette.primary.opacity(0.16)),
                     in: RoundedRectangle(cornerRadius: 24, style: .continuous)
                 )
         } else {
@@ -292,32 +292,36 @@ struct UploadView: View {
     }
 
     private func actionRow(_ palette: JuicePalette) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button {
                 showFileImporter = true
             } label: {
                 Label("Files", systemImage: "folder")
+                    .font(JuiceFont.body(14, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
             }
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                 Label("Photos", systemImage: "photo.on.rectangle")
+                    .font(JuiceFont.body(14, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
             }
             Button {
                 openCamera()
             } label: {
                 Label("Camera", systemImage: "camera")
+                    .font(JuiceFont.body(14, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
             }
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
+        .buttonBorderShape(.capsule)
+        .controlSize(.regular)
         .tint(palette.primary)
         .padding(.horizontal, 20)
     }

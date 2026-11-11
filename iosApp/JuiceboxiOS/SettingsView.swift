@@ -149,6 +149,7 @@ struct SettingsView: View {
             }
             .listRowBackground(ListRowSurface(palette: palette))
         }
+        .listSectionSpacing(16)
     }
 
     @ViewBuilder
