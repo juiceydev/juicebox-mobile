@@ -14,7 +14,14 @@ struct UploadView: View {
     @State private var showCamera = false
     @State private var photoItem: PhotosPickerItem?
     @State private var text = ""
+    @State private var link = ""
+    @State private var audioOnly = false
+    @State private var betterAudio = true
+    @State private var audioFormat = "best"
+    @State private var quality = "max"
+    @State private var container = "auto"
     @FocusState private var textFocused: Bool
+    @FocusState private var linkFocused: Bool
 
     enum UploadMode: String, CaseIterable, Identifiable {
         case files = "Files"
@@ -22,6 +29,12 @@ struct UploadView: View {
         case text = "Text"
 
         var id: String { rawValue }
+    }
+
+    private struct FetchOption<Value: Hashable>: Identifiable {
+        let label: String
+        let value: Value
+        var id: Value { value }
     }
 
     /// Screenshot runs can start on a specific mode with
@@ -58,6 +71,9 @@ struct UploadView: View {
                 if mode == .text {
                     textEditor(palette)
                         .transition(.opacity.combined(with: .move(edge: .top)))
+                } else if mode == .media {
+                    fetchForm(palette)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 } else {
                     dropZone(palette)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -65,6 +81,11 @@ struct UploadView: View {
 
                 if mode == .files {
                     actionRow(palette)
+                        .transition(.opacity)
+                }
+
+                if mode == .media {
+                    fetchRow(palette)
                         .transition(.opacity)
                 }
 
@@ -124,6 +145,11 @@ struct UploadView: View {
         }
         .onChange(of: mode) { _, value in
             textFocused = value == .text
+            linkFocused = value == .media
+        }
+        .onChange(of: model.config?.cobalt) { _, cobalt in
+            guard model.config != nil, cobalt != true, mode == .media else { return }
+            mode = .files
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { data in
@@ -167,9 +193,15 @@ struct UploadView: View {
         .padding(.horizontal, 20)
     }
 
+    private var canFetch: Bool { model.config?.cobalt == true }
+
+    private var availableModes: [UploadMode] {
+        UploadMode.allCases.filter { $0 != .media || canFetch || mode == .media }
+    }
+
     private func modePicker(_ palette: JuicePalette) -> some View {
         Picker("Upload mode", selection: $mode) {
-            ForEach(UploadMode.allCases) { item in
+            ForEach(availableModes) { item in
                 Text(item.rawValue).tag(item)
             }
         }
@@ -240,19 +272,12 @@ struct UploadView: View {
 
     @ViewBuilder
     private func dropZone(_ palette: JuicePalette) -> some View {
-        if mode == .media {
-            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
-                dropZoneLabel(palette, icon: "photo.on.rectangle.angled", title: "Pick a photo")
-            }
-            .buttonStyle(.plain)
-        } else {
-            Button {
-                showFileImporter = true
-            } label: {
-                dropZoneLabel(palette, icon: "arrow.up.to.line", title: "Drop files here")
-            }
-            .buttonStyle(.plain)
+        Button {
+            showFileImporter = true
+        } label: {
+            dropZoneLabel(palette, icon: "arrow.up.to.line", title: "Drop files here")
         }
+        .buttonStyle(.plain)
     }
 
     private func dropZoneLabel(_ palette: JuicePalette, icon: String, title: String) -> some View {
@@ -289,6 +314,187 @@ struct UploadView: View {
             palette.surfaceContainerLow
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
+    }
+
+    private func fetchForm(_ palette: JuicePalette) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Spacer(minLength: 0)
+                PasteButton(payloadType: String.self) { values in
+                    guard let value = values.first?
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                        !value.isEmpty else { return }
+                    link = value
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(palette.primary)
+            }
+            .padding(.horizontal, 20)
+
+            ZStack(alignment: .topLeading) {
+                if link.isEmpty {
+                    Text("YouTube, TikTok, X, SoundCloud…")
+                        .font(JuiceFont.body(16))
+                        .foregroundStyle(palette.onSurfaceVariant.opacity(0.75))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 16)
+                        .allowsHitTesting(false)
+                }
+                TextField("Link", text: $link, axis: .vertical)
+                    .focused($linkFocused)
+                    .font(JuiceFont.body(16))
+                    .foregroundStyle(palette.onSurface)
+                    .lineLimit(2...5)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+            }
+            .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+            .background(
+                palette.surfaceContainerLow,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(
+                        linkFocused ? palette.primary : palette.outline.opacity(0.5),
+                        lineWidth: linkFocused ? 1.6 : 1
+                    )
+            )
+            .padding(.horizontal, 20)
+
+            VStack(spacing: 0) {
+                Toggle("Audio only", isOn: $audioOnly)
+                    .font(JuiceFont.body(15))
+                    .foregroundStyle(palette.onSurface)
+                    .tint(palette.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                Divider()
+                    .overlay(palette.outline.opacity(0.4))
+
+                if audioOnly {
+                    optionRow(
+                        "Better audio",
+                        selection: $betterAudio,
+                        options: [
+                            FetchOption(label: "Enhanced", value: true),
+                            FetchOption(label: "Standard", value: false),
+                        ],
+                        palette: palette
+                    )
+                    Divider()
+                        .overlay(palette.outline.opacity(0.4))
+                    optionRow(
+                        "Audio format",
+                        selection: $audioFormat,
+                        options: [
+                            FetchOption(label: "Best", value: "best"),
+                            FetchOption(label: "MP3", value: "mp3"),
+                            FetchOption(label: "Opus", value: "opus"),
+                            FetchOption(label: "OGG", value: "ogg"),
+                            FetchOption(label: "WAV", value: "wav"),
+                            FetchOption(label: "FLAC", value: "flac"),
+                        ],
+                        palette: palette
+                    )
+                } else {
+                    optionRow(
+                        "Quality",
+                        selection: $quality,
+                        options: [
+                            FetchOption(label: "Max", value: "max"),
+                            FetchOption(label: "2160p", value: "2160"),
+                            FetchOption(label: "1440p", value: "1440"),
+                            FetchOption(label: "1080p", value: "1080"),
+                            FetchOption(label: "720p", value: "720"),
+                            FetchOption(label: "480p", value: "480"),
+                            FetchOption(label: "360p", value: "360"),
+                        ],
+                        palette: palette
+                    )
+                    Divider()
+                        .overlay(palette.outline.opacity(0.4))
+                    optionRow(
+                        "Container",
+                        selection: $container,
+                        options: [
+                            FetchOption(label: "Auto", value: "auto"),
+                            FetchOption(label: "MP4", value: "mp4"),
+                            FetchOption(label: "WebM", value: "webm"),
+                            FetchOption(label: "MKV", value: "mkv"),
+                        ],
+                        palette: palette
+                    )
+                }
+            }
+            .background(
+                palette.surfaceContainerLow,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func optionRow<Value: Hashable>(
+        _ title: String,
+        selection: Binding<Value>,
+        options: [FetchOption<Value>],
+        palette: JuicePalette
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(JuiceFont.body(15))
+                .foregroundStyle(palette.onSurface)
+            Spacer(minLength: 8)
+            Picker(title, selection: selection) {
+                ForEach(options) { option in
+                    Text(option.label).tag(option.value)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(palette.primary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private func fetchRow(_ palette: JuicePalette) -> some View {
+        HStack {
+            Text(link.isEmpty ? "Paste a supported link" : "Ready to fetch")
+                .font(JuiceFont.mono(12))
+                .foregroundStyle(palette.onSurfaceVariant)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Button {
+                let started = model.fetchMedia(
+                    url: link,
+                    audioOnly: audioOnly,
+                    quality: quality,
+                    container: container,
+                    audioFormat: audioFormat,
+                    betterAudio: betterAudio
+                )
+                if started {
+                    link = ""
+                    linkFocused = false
+                }
+            } label: {
+                Label("Fetch", systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .tint(palette.primary)
+            .disabled(
+                model.isUploading ||
+                link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+        }
+        .padding(.horizontal, 20)
     }
 
     private func actionRow(_ palette: JuicePalette) -> some View {
@@ -402,7 +608,10 @@ struct UploadView: View {
             }
             .padding(.top, 4)
         } label: {
-            Label("Uploading", systemImage: "arrow.up.circle")
+            Label(
+                model.isFetching ? "Fetching" : "Uploading",
+                systemImage: model.isFetching ? "arrow.down.circle" : "arrow.up.circle"
+            )
                 .font(JuiceFont.body(14, weight: .semibold))
                 .foregroundStyle(palette.onSurface)
         }

@@ -266,6 +266,58 @@ class IosBridge(version: String) {
         )
     }
 
+    /**
+     * Ask the server's cobalt pipeline for a video or audio file and record
+     * the resulting library entry, the same two steps Android's fetch task
+     * takes.
+     */
+    fun fetchMedia(
+        url: String,
+        audioOnly: Boolean,
+        videoQuality: String,
+        videoContainer: String,
+        audioFormat: String,
+        betterAudio: Boolean,
+        onProgress: (Double, Double, String?) -> Unit,
+        completion: (LibraryFile?, String?) -> Unit,
+    ) {
+        val link = url.trim()
+        if (link.isEmpty()) {
+            completion(null, "Paste a link first")
+            return
+        }
+        scope.launch {
+            try {
+                val settings = container.settingsStore.current()
+                val file = core.fetchMedia(
+                    url = link,
+                    password = effectivePassword(settings),
+                    audioOnly = audioOnly,
+                    videoQuality = videoQuality,
+                    videoContainer = videoContainer,
+                    audioFormat = audioFormat,
+                    betterAudio = betterAudio,
+                    onProgress = { status ->
+                        val total = status.totalBytes?.toDouble() ?: 0.0
+                        val received = status.bytesReceived?.toDouble() ?: 0.0
+                        val fraction = if (total > 0) {
+                            (received / total).coerceIn(0.0, 1.0)
+                        } else {
+                            0.0
+                        }
+                        onProgress(fraction, total, status.stage)
+                    },
+                )
+                val recorded = core.recordFetch(file, sourceUri = link)
+                completion(recorded, null)
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Throwable) {
+                completion(null, error.friendlyMessage())
+            }
+        }
+    }
+
     // ---- settings ----------------------------------------------------------
 
     fun setThemeMode(value: String) = update { it.copy(themeMode = value) }

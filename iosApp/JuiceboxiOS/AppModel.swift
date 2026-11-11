@@ -18,6 +18,7 @@ final class AppModel: ObservableObject {
     @Published var ttlOptions: [IosTtlOption]
     @Published var selectedMinutes: Int32
     @Published var isUploading = false
+    @Published var isFetching = false
     @Published var uploadProgress = 0.0
     @Published var lastUpload: LibraryFile?
     @Published var toast: String?
@@ -244,6 +245,52 @@ final class AppModel: ObservableObject {
         )
     }
 
+    /// Fetches a video or audio link through the server's cobalt pipeline and
+    /// records the resulting file in the library, mirroring Android's Media
+    /// mode. Returns false when the request never started.
+    @discardableResult
+    func fetchMedia(
+        url: String,
+        audioOnly: Bool,
+        quality: String,
+        container: String,
+        audioFormat: String,
+        betterAudio: Bool
+    ) -> Bool {
+        let link = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !link.isEmpty else {
+            flash("Paste a link first")
+            return false
+        }
+        guard config?.cobalt == true else {
+            flash("This server can't fetch links")
+            return false
+        }
+        let source = URL(string: link)?.host ?? "Link"
+        guard beginUpload(filename: source, size: 0) else { return false }
+        isFetching = true
+        bridge.fetchMedia(
+            url: link,
+            audioOnly: audioOnly,
+            videoQuality: quality,
+            videoContainer: container,
+            audioFormat: audioFormat,
+            betterAudio: betterAudio,
+            onProgress: { [weak self] fraction, total, _ in
+                let progress = fraction.doubleValue
+                self?.uploadProgress = progress
+                LiveUploadActivity.shared.report(
+                    progress: progress,
+                    totalBytes: Int64(total.doubleValue)
+                )
+            },
+            completion: { [weak self] file, error in
+                self?.finishUpload(file: file, error: error)
+            }
+        )
+        return true
+    }
+
     private func startUpload(path: String, filename: String, mime: String) {
         let attributes = try? FileManager.default.attributesOfItem(atPath: path)
         let size = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
@@ -282,6 +329,7 @@ final class AppModel: ObservableObject {
 
     private func finishUpload(file: LibraryFile?, error: String?) {
         isUploading = false
+        isFetching = false
         if let file {
             uploadProgress = 1
             lastUpload = file

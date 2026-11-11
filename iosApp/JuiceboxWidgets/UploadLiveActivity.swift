@@ -128,6 +128,9 @@ private func detailText(_ state: UploadActivityAttributes.ContentState, server: 
     case .failed:
         return "Upload failed"
     case .uploading:
+        if state.totalBytes <= 0 {
+            return "Fetching to \(server)"
+        }
         let sent = ByteCountFormatter.string(fromByteCount: state.bytesSent, countStyle: .file)
         let total = ByteCountFormatter.string(fromByteCount: state.totalBytes, countStyle: .file)
         return "\(sent) of \(total) to \(server)"

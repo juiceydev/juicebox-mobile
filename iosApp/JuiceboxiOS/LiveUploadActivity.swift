@@ -56,6 +56,16 @@ final class LiveUploadActivity {
         }
     }
 
+    /// Fetch progress arrives with the server-reported size only once cobalt
+    /// has resolved the link; until then the activity keeps its unknown-size
+    /// copy instead of showing "0 bytes".
+    func report(progress: Double, totalBytes: Int64) {
+        if totalBytes > 0 {
+            self.totalBytes = totalBytes
+        }
+        report(progress: progress)
+    }
+
     func report(progress: Double) {
         guard let activity else { return }
         let clamped = min(1, max(0, progress))
