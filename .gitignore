@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+**/build/
+.kotlin/
+local.properties
+
+# Signing material never belongs in the repo
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+.directory
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
