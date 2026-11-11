@@ -270,6 +270,19 @@ struct UploadView: View {
                 }
                 .labelsHidden()
                 .tint(palette.primary)
+                .accessibilityValue(TtlFormat.label(minutes: options[ttlIndex].minutes))
+                .accessibilityAdjustableAction { direction in
+                    let delta: Int
+                    switch direction {
+                    case .increment: delta = 1
+                    case .decrement: delta = -1
+                    @unknown default: return
+                    }
+                    let next = min(max(ttlIndex + delta, 0), options.count - 1)
+                    guard next != ttlIndex else { return }
+                    model.selectedMinutes = options[next].minutes
+                    model.setLastTtl(options[next].minutes)
+                }
                 .sensoryFeedback(
                     .selection,
                     trigger: model.selectedMinutes,
