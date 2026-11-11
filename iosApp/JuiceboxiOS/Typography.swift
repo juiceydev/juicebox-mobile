@@ -94,7 +94,7 @@ final class WordmarkView: UIView {
             attributes: [
                 .font: font,
                 .strokeColor: UIColor.black,
-                .strokeWidth: 9,
+                .strokeWidth: 18,
                 .paragraphStyle: paragraph,
             ]
         )

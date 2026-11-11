@@ -33,7 +33,7 @@ struct FilesView: View {
                     }
                 } footer: {
                     if !model.files.isEmpty {
-                        Text("\(model.files.count) files - \(JuiceFormat.bytes(totalBytes))")
+                        Text("\(model.files.count) files, \(JuiceFormat.bytes(totalBytes))")
                     }
                 }
             }
@@ -143,8 +143,7 @@ struct FileRow: View {
         }
         if isPending { return "Waiting to upload" }
         let size = JuiceFormat.bytes(file.sizeBytes)
-        let kind = JuiceFormat.mimeLabel(file.mimeType, filename: file.filename)
         let left = JuiceFormat.timeLeft(expiresAt: file.expiresAt)
-        return "\(size) - \(kind) - \(left)"
+        return "\(size), \(left)"
     }
 }

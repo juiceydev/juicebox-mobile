@@ -22,6 +22,7 @@ struct UploadView: View {
     @State private var container = "auto"
     @FocusState private var textFocused: Bool
     @FocusState private var linkFocused: Bool
+    @State private var viewportHeight: CGFloat = 0
 
     enum UploadMode: String, CaseIterable, Identifiable {
         case files = "Files"
@@ -67,6 +68,10 @@ struct UploadView: View {
 
                 modePicker(palette)
                 retention(palette)
+
+                if mode == .files {
+                    Spacer(minLength: 0)
+                }
 
                 if mode == .text {
                     textEditor(palette)
@@ -118,8 +123,13 @@ struct UploadView: View {
                 if model.settings.lockUploads {
                     lockNote(palette)
                 }
+
+                if mode == .files {
+                    Spacer(minLength: 0)
+                }
             }
             .padding(.bottom, 28)
+            .frame(minHeight: viewportHeight, alignment: .top)
             .animation(.easeInOut(duration: 0.24), value: mode)
             .animation(.snappy(duration: 0.3), value: model.connection.connected)
             .animation(.spring(duration: 0.35), value: model.isUploading)
@@ -128,6 +138,15 @@ struct UploadView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(palette.background.ignoresSafeArea())
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: UploadViewportHeightKey.self,
+                    value: proxy.size.height
+                )
+            }
+        }
+        .onPreferenceChange(UploadViewportHeightKey.self) { viewportHeight = $0 }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.item],
@@ -245,8 +264,7 @@ struct UploadView: View {
                             model.setLastTtl(options[next].minutes)
                         }
                     ),
-                    in: 0...Double(max(1, options.count - 1)),
-                    step: 1
+                    in: 0...Double(max(1, options.count - 1))
                 ) {
                     Text("Retention")
                 } minimumValueLabel: {
@@ -304,16 +322,19 @@ struct UploadView: View {
     /// surface for the system glass material.
     @ViewBuilder
     private func dropZoneSurface(_ palette: JuicePalette) -> some View {
-        if glass, #available(iOS 26.0, *) {
-            Color.clear
-                .glassEffect(
-                    .regular.tint(palette.primary.opacity(0.16)),
-                    in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-                )
-        } else {
-            palette.surfaceContainerLow
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        ZStack {
+            if glass, #available(iOS 26.0, *) {
+                Color.clear
+                    .glassEffect(
+                        .regular.tint(palette.primary.opacity(0.16)),
+                        in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    )
+            } else {
+                palette.surfaceContainerLow
+            }
+            DropZoneStripes(color: palette.primary.opacity(0.035))
         }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func fetchForm(_ palette: JuicePalette) -> some View {
@@ -652,6 +673,47 @@ struct UploadView: View {
             }
         }
         photoItem = nil
+    }
+}
+
+/// The viewport height, so the Files stage can sit in the middle of the
+/// space the ScrollView actually shows.
+private struct UploadViewportHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+/// The site's -45 degree stripes, drifting slowly behind the drop zone.
+private struct DropZoneStripes: View {
+    let color: Color
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1.0 / 30.0)) { timeline in
+            Canvas { context, size in
+                let period: CGFloat = 15
+                let band = period * 0.42
+                let span = (size.width + size.height) * 1.6
+                let cycle = timeline.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 4.2)
+                let shift = CGFloat(cycle / 4.2) * period
+                context.translateBy(x: size.width / 2, y: size.height / 2)
+                context.rotate(by: .degrees(-45))
+                context.translateBy(x: -size.width / 2, y: -size.height / 2)
+                var x = -span + shift
+                while x < span {
+                    context.fill(
+                        Path(CGRect(x: x, y: -span, width: band, height: span * 2)),
+                        with: .color(color)
+                    )
+                    x += period
+                }
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
     }
 }
 

@@ -186,12 +186,7 @@ struct SettingsView: View {
 
     private var connectionLabel: String {
         if model.connection.connecting { return "Checking" }
-        if model.connection.connected {
-            if let version = model.config?.version, !version.isEmpty {
-                return "Connected - v\(version)"
-            }
-            return "Connected"
-        }
+        if model.connection.connected { return "Connected" }
         return "Not connected"
     }
 
@@ -203,6 +198,9 @@ struct SettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 LabeledContent("Status", value: connectionLabel)
+                if let version = model.config?.version, !version.isEmpty {
+                    LabeledContent("Version", value: "v\(version)")
+                }
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
@@ -663,7 +661,7 @@ struct SettingsView: View {
                         .frame(width: 52, height: 52)
                     VStack(alignment: .leading, spacing: 2) {
                         TitleWordmark(size: 22, color: palette.primary)
-                        Text("for iOS - \(model.version)")
+                        Text("for iOS \(model.version)")
                             .font(JuiceFont.body(11))
                             .foregroundStyle(palette.onSurfaceVariant)
                     }

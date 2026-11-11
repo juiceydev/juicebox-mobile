@@ -66,15 +66,4 @@ enum JuiceFormat {
         }
         return "doc"
     }
-
-    static func mimeLabel(_ mime: String, filename: String) -> String {
-        if mime.hasPrefix("image/") { return "IMG" }
-        if mime.hasPrefix("video/") { return "VID" }
-        if mime.hasPrefix("audio/") { return "AUD" }
-        if mime.contains("pdf") { return "PDF" }
-        if mime.hasPrefix("text/") { return "TXT" }
-        if mime.contains("zip") || mime.contains("archive") { return "ZIP" }
-        let ext = (filename as NSString).pathExtension
-        return ext.isEmpty ? "FILE" : ext.uppercased()
-    }
 }
