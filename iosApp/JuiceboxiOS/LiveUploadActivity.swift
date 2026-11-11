@@ -16,6 +16,7 @@ final class LiveUploadActivity {
     private var filename = ""
     private var totalBytes: Int64 = 0
     private var lastReported = -1.0
+    private var heartbeat: Task<Void, Never>?
 
     private var enabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
@@ -67,19 +68,46 @@ final class LiveUploadActivity {
     }
 
     func report(progress: Double) {
-        guard let activity else { return }
+        guard activity != nil else { return }
         let clamped = min(1, max(0, progress))
         guard clamped - lastReported >= 0.02 || clamped >= 1 else { return }
         lastReported = clamped
+        push(progress: clamped)
+    }
+
+    /// A demo upload holds one progress value for a whole screenshot run, so a
+    /// fresh simulator can miss its only update and leave the island blank.
+    /// Re-sending the state, with a nudge too small to change any text, keeps
+    /// it painted.
+    func keepFresh() {
+        guard heartbeat == nil, activity != nil else { return }
+        heartbeat = Task { [weak self] in
+            var nudge = false
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self, self.activity != nil else { return }
+                nudge.toggle()
+                self.push(progress: self.lastReported + (nudge ? 0.0002 : 0))
+            }
+        }
+    }
+
+    private func push(progress: Double) {
+        guard let activity else { return }
         let state = UploadActivityAttributes.ContentState(
             filename: filename,
-            progress: clamped,
+            progress: progress,
             phase: .uploading,
             link: nil,
-            bytesSent: Int64(Double(totalBytes) * clamped),
+            bytesSent: Int64(Double(totalBytes) * progress),
             totalBytes: totalBytes
         )
         Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
+    }
+
+    private func stopHeartbeat() {
+        heartbeat?.cancel()
+        heartbeat = nil
     }
 
     func finish(link: String?) {
@@ -93,6 +121,7 @@ final class LiveUploadActivity {
             totalBytes: totalBytes
         )
         self.activity = nil
+        stopHeartbeat()
         Task { await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .default) }
     }
 
@@ -107,12 +136,14 @@ final class LiveUploadActivity {
             totalBytes: totalBytes
         )
         self.activity = nil
+        stopHeartbeat()
         Task { await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate) }
     }
 
     private func endStale() {
         guard let activity else { return }
         self.activity = nil
+        stopHeartbeat()
         Task { await activity.end(nil, dismissalPolicy: .immediate) }
     }
 }

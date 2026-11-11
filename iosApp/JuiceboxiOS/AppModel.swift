@@ -114,6 +114,7 @@ final class AppModel: ObservableObject {
         )
         if started {
             LiveUploadActivity.shared.report(progress: 0.62)
+            LiveUploadActivity.shared.keepFresh()
         }
         return started
     }
