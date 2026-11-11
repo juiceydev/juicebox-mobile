@@ -332,27 +332,23 @@ struct UploadView: View {
             }
             .padding(.horizontal, 20)
 
-            ZStack(alignment: .topLeading) {
-                if link.isEmpty {
-                    Text("YouTube, TikTok, X, SoundCloud…")
-                        .font(JuiceFont.body(16))
-                        .foregroundStyle(palette.onSurfaceVariant.opacity(0.75))
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 16)
-                        .allowsHitTesting(false)
-                }
-                TextField("Link", text: $link, axis: .vertical)
-                    .focused($linkFocused)
-                    .font(JuiceFont.body(16))
-                    .foregroundStyle(palette.onSurface)
-                    .lineLimit(2...5)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-            }
-            .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+            TextField(
+                "Link",
+                text: $link,
+                prompt: Text("YouTube, TikTok, X, SoundCloud…")
+                    .foregroundStyle(palette.onSurfaceVariant.opacity(0.75)),
+                axis: .vertical
+            )
+                .focused($linkFocused)
+                .font(JuiceFont.body(16))
+                .foregroundStyle(palette.onSurface)
+                .lineLimit(2...5)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
             .background(
                 palette.surfaceContainerLow,
                 in: RoundedRectangle(cornerRadius: 20, style: .continuous)
