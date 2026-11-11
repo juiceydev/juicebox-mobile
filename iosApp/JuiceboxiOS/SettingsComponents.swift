@@ -444,6 +444,7 @@ struct SettingsDialogCard<Content: View>: View {
     let confirmLabel: String
     var destructive = false
     var confirmEnabled = true
+    var showConfirm = true
     let onConfirm: () -> Void
     let onDismiss: () -> Void
     @ViewBuilder var content: Content
@@ -471,17 +472,19 @@ struct SettingsDialogCard<Content: View>: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                Button(action: onConfirm) {
-                    Text(confirmLabel)
-                        .font(JuiceFont.body(14, weight: .medium))
-                        .foregroundStyle(destructive ? palette.error : palette.primary)
-                        .padding(.horizontal, 12)
-                        .frame(height: 44)
-                        .contentShape(Rectangle())
+                if showConfirm {
+                    Button(action: onConfirm) {
+                        Text(confirmLabel)
+                            .font(JuiceFont.body(14, weight: .medium))
+                            .foregroundStyle(destructive ? palette.error : palette.primary)
+                            .padding(.horizontal, 12)
+                            .frame(height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!confirmEnabled)
+                    .opacity(confirmEnabled ? 1 : 0.5)
                 }
-                .buttonStyle(.plain)
-                .disabled(!confirmEnabled)
-                .opacity(confirmEnabled ? 1 : 0.5)
             }
             .padding(.top, 20)
         }

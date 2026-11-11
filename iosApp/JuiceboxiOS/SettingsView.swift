@@ -748,6 +748,7 @@ struct SettingsView: View {
                 title: "Shared links",
                 palette: palette,
                 confirmLabel: "Cancel",
+                showConfirm: false,
                 onConfirm: { self.dialog = nil },
                 onDismiss: { self.dialog = nil }
             ) {
