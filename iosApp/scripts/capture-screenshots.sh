@@ -90,7 +90,7 @@ for appearance in light dark; do
     shoot "$appearance" "$tab" 1
   done
   # Settings is a drill-down now; capture the pages that changed most.
-  for page in server appearance uploads library; do
+  for page in server storage appearance uploads library; do
     shoot "$appearance" settings 1 "$page"
   done
 done
