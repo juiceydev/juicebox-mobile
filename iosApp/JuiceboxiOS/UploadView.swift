@@ -504,34 +504,24 @@ struct UploadView: View {
     }
 
     private func textEditor(_ palette: JuicePalette) -> some View {
-        ZStack(alignment: .topLeading) {
-            if text.isEmpty {
-                Text("Paste text or a link")
+        GroupBox {
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text("Paste text or a link")
+                        .font(JuiceFont.body(16))
+                        .foregroundStyle(palette.onSurfaceVariant.opacity(0.75))
+                        .padding(.horizontal, 5)
+                        .padding(.top, 8)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $text)
+                    .focused($textFocused)
                     .font(JuiceFont.body(16))
-                    .foregroundStyle(palette.onSurfaceVariant.opacity(0.75))
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 20)
+                    .foregroundStyle(palette.onSurface)
+                    .scrollContentBackground(.hidden)
             }
-            TextEditor(text: $text)
-                .focused($textFocused)
-                .font(JuiceFont.body(16))
-                .foregroundStyle(palette.onSurface)
-                .scrollContentBackground(.hidden)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 11)
-                .frame(minHeight: 220)
+            .frame(minHeight: 220)
         }
-        .background(
-            palette.surfaceContainerLow,
-            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(
-                    textFocused ? palette.primary : palette.outline.opacity(0.5),
-                    lineWidth: textFocused ? 1.6 : 1
-                )
-        )
         .padding(.horizontal, 20)
     }
 
