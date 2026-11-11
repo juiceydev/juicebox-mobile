@@ -60,7 +60,10 @@ pre-build step, so the shared framework is always current. Deployment target is
 iOS 17 and the bundle id is `dev.juicey.juicebox`.
 
 `.github/workflows/ios.yml` builds the simulator app on a macOS runner and
-publishes `Juicebox-simulator.zip` as an artifact. Device and TestFlight builds
+publishes `Juicebox-simulator.zip` as an artifact. `.github/workflows/ios-device.yml`
+builds an unsigned device IPA for sideloading; see
+[`docs/test-on-device.md`](docs/test-on-device.md) for signing it with a free
+Apple ID. Device and TestFlight builds
 need an Apple Developer team and a signing profile in the repository secrets;
 none are configured yet.
 
