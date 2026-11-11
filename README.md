@@ -95,8 +95,9 @@ account.
 
 `versionCode` and `versionName` live in `app/build.gradle.kts`; the iOS
 `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` live in `iosApp/project.yml`.
-The version is also sent to the server in the user agent and `X-Juicebox-Client`
-header, so upload statistics can tell platforms apart.
+The version is also sent to the server in the user agent, formatted as
+`Juicebox/<os>/<version>` (for example `Juicebox/Android/1.0.0`), plus the
+`X-Juicebox-Client` platform header.
 
 ## Tests
 

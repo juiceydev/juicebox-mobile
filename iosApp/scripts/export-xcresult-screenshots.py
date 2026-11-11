@@ -43,7 +43,12 @@ def main() -> int:
     copied = 0
     manifest = raw / "manifest.json"
     if manifest.exists():
-        for attachment in json.loads(manifest.read_text()).get("attachments", []):
+        data = json.loads(manifest.read_text())
+        # Xcode 26 writes a bare list; older xcresulttool wrapped it in an object.
+        attachments = data.get("attachments", []) if isinstance(data, dict) else data
+        for attachment in attachments:
+            if not isinstance(attachment, dict):
+                continue
             exported = attachment.get("exportedFileName")
             if not exported:
                 continue
@@ -51,6 +56,8 @@ def main() -> int:
             if not source.exists():
                 continue
             label = attachment.get("suggestedHumanReadableName") or source.stem
+            # XCTest appends "_0_<attachment uuid>" to the suggested name.
+            label = re.sub(r"_\d+_[0-9A-Fa-f-]{36}(\.png)?$", "", label)
             slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
             destination = out / f"{slug or source.stem}.png"
             shutil.copyfile(source, destination)

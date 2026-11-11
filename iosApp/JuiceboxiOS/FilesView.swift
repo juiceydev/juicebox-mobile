@@ -57,6 +57,7 @@ struct FilesView: View {
                                 FileRow(file: file, palette: palette)
                             }
                             .buttonStyle(.plain)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                             if file.localId != filtered.last?.localId {
                                 Divider()
                                     .overlay(palette.outline.opacity(0.25))
@@ -64,6 +65,7 @@ struct FilesView: View {
                             }
                         }
                     }
+                    .animation(.snappy(duration: 0.28), value: filtered.map(\.localId))
                     .padding(.bottom, 12)
                 }
             }

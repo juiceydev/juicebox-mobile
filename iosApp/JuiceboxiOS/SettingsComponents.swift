@@ -447,6 +447,7 @@ struct SettingsDialogCard<Content: View>: View {
     let onConfirm: () -> Void
     let onDismiss: () -> Void
     @ViewBuilder var content: Content
+    @State private var shown = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -491,6 +492,11 @@ struct SettingsDialogCard<Content: View>: View {
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
         .padding(.horizontal, 24)
+        .scaleEffect(shown ? 1 : 0.94)
+        .opacity(shown ? 1 : 0)
+        .onAppear {
+            withAnimation(.spring(duration: 0.3)) { shown = true }
+        }
     }
 }
 

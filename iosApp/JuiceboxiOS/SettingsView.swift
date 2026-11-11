@@ -73,8 +73,21 @@ struct SettingsView: View {
             palette.background.ignoresSafeArea()
             if let page {
                 subpage(page, palette)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        )
+                    )
+                    .zIndex(1)
             } else {
                 root(palette)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .opacity
+                        )
+                    )
             }
             if let dialog {
                 SettingsDialogOverlay(
@@ -82,8 +95,12 @@ struct SettingsView: View {
                     onDismiss: { self.dialog = nil },
                     content: { dialogCard(dialog, palette) }
                 )
+                .transition(.opacity)
+                .zIndex(3)
             }
         }
+        .animation(.snappy(duration: 0.32), value: page)
+        .animation(.easeOut(duration: 0.2), value: dialog)
         .onAppear {
             serverInput = model.settings.serverUrl
         }

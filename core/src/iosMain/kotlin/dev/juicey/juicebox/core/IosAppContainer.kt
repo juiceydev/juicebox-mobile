@@ -23,7 +23,7 @@ class IosAppContainer(version: String) {
 
     val clientInfo = ClientInfo(
         name = "ios",
-        userAgent = "Juicebox-iOS/$version",
+        userAgent = "Juicebox/iOS/$version",
     )
 
     private val httpClient = createJuiceboxHttpClient(

@@ -10,6 +10,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -128,13 +134,25 @@ private fun AppRoot(container: AppContainer, startTab: Int) {
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            when (tab) {
-                1 -> FilesScreen(filesViewModel, Modifier.fillMaxSize())
-                2 -> SettingsScreen(settingsViewModel, Modifier.fillMaxSize())
-                else -> UploadScreen(
-                    viewModel = uploadViewModel,
-                    modifier = Modifier.fillMaxSize(),
-                )
+            AnimatedContent(
+                targetState = tab,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    (fadeIn(tween(190)) + scaleIn(
+                        animationSpec = tween(240),
+                        initialScale = 0.985f,
+                    )) togetherWith fadeOut(tween(120))
+                },
+                label = "tab",
+            ) { current ->
+                when (current) {
+                    1 -> FilesScreen(filesViewModel, Modifier.fillMaxSize())
+                    2 -> SettingsScreen(settingsViewModel, Modifier.fillMaxSize())
+                    else -> UploadScreen(
+                        viewModel = uploadViewModel,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

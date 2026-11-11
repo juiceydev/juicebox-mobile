@@ -17,6 +17,9 @@ import dev.juicey.juicebox.core.model.normalizeServerUrl
 import dev.juicey.juicebox.core.net.ApiException
 import dev.juicey.juicebox.core.net.JuiceboxApi
 import dev.juicey.juicebox.core.net.PersistentCookieStorage
+import dev.juicey.juicebox.core.net.isHostLookupFailure
+import dev.juicey.juicebox.core.net.isTransientNetworkFailure
+import dev.juicey.juicebox.core.net.withConnectionRetry
 import dev.juicey.juicebox.core.storage.LibraryStore
 import dev.juicey.juicebox.core.storage.SettingsStore
 import dev.juicey.juicebox.core.upload.UploadEngine
@@ -102,11 +105,15 @@ class JuiceboxCore(
         try {
             // `/api/config` is exempt from session creation, so the two calls
             // are independent. Running them together halves a cold check.
-            val config = coroutineScope {
-                val session = async { api.ensureSession() }
-                val config = async { api.config() }
-                session.await()
-                config.await()
+            // A cold DNS lookup can fail while the radio wakes up; replaying
+            // the handshake once or twice avoids a spurious "offline" banner.
+            val config = withConnectionRetry {
+                coroutineScope {
+                    val session = async { api.ensureSession() }
+                    val config = async { api.config() }
+                    session.await()
+                    config.await()
+                }
             }
             _config.value = config
             _connection.value = ConnectionState(
@@ -164,9 +171,9 @@ class JuiceboxCore(
     // ---- library ----------------------------------------------------------
 
     suspend fun refreshLibrary(): Int {
-        api.ensureSession()
+        withConnectionRetry { api.ensureSession() }
         val server = currentServer()
-        val records = api.clientFiles()
+        val records = withConnectionRetry { api.clientFiles() }
         // Files live on the CDN host, not on the API host.
         val publicBase = _config.value?.publicBaseUrl?.takeIf { it.isNotBlank() } ?: server
         libraryStore.mergeServer(server, records, publicBase)
@@ -175,8 +182,8 @@ class JuiceboxCore(
 
     /** Ask the server whether a storage node is reachable and usable. */
     suspend fun validateHost(host: String): HostValidation {
-        api.ensureSession()
-        return api.validateHost(host.trim().trimEnd('/'))
+        withConnectionRetry { api.ensureSession() }
+        return withConnectionRetry { api.validateHost(host.trim().trimEnd('/')) }
     }
 
     suspend fun recordUpload(
@@ -387,7 +394,11 @@ class JuiceboxCore(
     }
 }
 
-fun Throwable.friendlyMessage(): String = when (this) {
-    is ApiException -> message
+fun Throwable.friendlyMessage(): String = when {
+    this is ApiException -> message
+    isHostLookupFailure() ->
+        "Can't find the Juicebox server. Check your connection and the server address, then try again."
+    isTransientNetworkFailure() ->
+        "Can't reach the Juicebox server. Check your connection and try again."
     else -> message?.takeIf { it.isNotBlank() } ?: "Network error"
 }

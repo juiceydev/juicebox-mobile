@@ -43,7 +43,7 @@ class AppContainer(context: Context) {
 
     private val clientInfo = ClientInfo(
         name = "android",
-        userAgent = "Juicebox-Android/${BuildConfig.VERSION_NAME}",
+        userAgent = "Juicebox/Android/${BuildConfig.VERSION_NAME}",
     )
 
     private val httpClient = createJuiceboxHttpClient(platformHttpClientEngine(), cookies, clientInfo)

@@ -40,6 +40,7 @@ struct UploadView: View {
 
                 if !model.connection.connected && !model.connection.connecting {
                     offlineNotice(palette)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 if let announcement = model.announcement,
@@ -47,6 +48,7 @@ struct UploadView: View {
                    !message.isEmpty {
                     AnnouncementBar(announcement: announcement, palette: palette)
                         .padding(.horizontal, 16)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 modePicker(palette)
@@ -54,24 +56,41 @@ struct UploadView: View {
 
                 if mode == .text {
                     textEditor(palette)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 } else {
                     dropZone(palette)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 if mode == .files {
                     actionRow(palette)
+                        .transition(.opacity)
                 }
 
                 if mode == .text {
                     saveRow(palette)
+                        .transition(.opacity)
                 }
 
                 if model.isUploading {
                     progressCard(palette)
+                        .transition(
+                            .asymmetric(
+                                insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
+                                removal: .opacity
+                            )
+                        )
                 }
 
                 if let file = model.lastUpload {
                     resultCard(file, palette)
+                        .transition(
+                            .asymmetric(
+                                insertion: .scale(scale: 0.96, anchor: .top).combined(with: .opacity),
+                                removal: .opacity
+                            )
+                        )
+                        .id(file.localId)
                 }
 
                 if model.settings.lockUploads {
@@ -79,6 +98,11 @@ struct UploadView: View {
                 }
             }
             .padding(.bottom, 28)
+            .animation(.easeInOut(duration: 0.24), value: mode)
+            .animation(.snappy(duration: 0.3), value: model.connection.connected)
+            .animation(.spring(duration: 0.35), value: model.isUploading)
+            .animation(.spring(duration: 0.35), value: model.lastUpload?.localId)
+            .animation(.easeOut(duration: 0.24), value: model.announcement?.message)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(palette.background.ignoresSafeArea())
@@ -339,6 +363,7 @@ struct UploadView: View {
                 }
                 ProgressView(value: model.uploadProgress)
                     .tint(palette.primary)
+                    .animation(.linear(duration: 0.2), value: model.uploadProgress)
             }
             .padding(18)
         }
