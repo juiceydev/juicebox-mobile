@@ -1,0 +1,77 @@
+name: iOS device (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ios-device-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build device app
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: iosApp
+        run: xcodegen generate
+
+      # No signing here on purpose: the .ipa is signed later on the machine
+      # that owns the iPhone, with its free or paid Apple ID.
+      - name: Build
+        working-directory: iosApp
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Juicebox.xcodeproj \
+            -scheme Juicebox \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          APP="iosApp/build/Build/Products/Release-iphoneos/Juicebox.app"
+          file "$APP/Juicebox"
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/Juicebox.app
+          ditto -c -k --sequesterRsrc --keepParent Payload Juicebox-unsigned.ipa
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Juicebox-unsigned-ipa
+          path: Juicebox-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
