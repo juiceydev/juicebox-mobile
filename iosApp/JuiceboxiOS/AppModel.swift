@@ -199,6 +199,8 @@ final class AppModel: ObservableObject {
             return
         }
         let name = url.lastPathComponent.isEmpty ? "file" : url.lastPathComponent
+        uploadProgress = 0
+        lastUpload = nil
         isStaging = true
         // A photo-library video can be gigabytes; copying it on the main
         // thread froze the screen before the upload even started.
@@ -231,7 +233,12 @@ final class AppModel: ObservableObject {
     }
 
     func upload(_ data: Data, filename: String, mime: String) {
-        guard !isStaging else { return }
+        guard !isStaging, !isUploading else {
+            flash("An upload is already running")
+            return
+        }
+        uploadProgress = 0
+        lastUpload = nil
         isStaging = true
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let directory = FileManager.default.temporaryDirectory
