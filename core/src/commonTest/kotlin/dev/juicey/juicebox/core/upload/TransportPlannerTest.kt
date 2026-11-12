@@ -20,7 +20,7 @@ class TransportPlannerTest {
         )
         assertEquals(
             UploadTransport.DIRECT,
-            planTransport(direct, 16 * mib, hasPassword = false),
+            planTransport(direct, 8 * mib, hasPassword = false),
         )
     }
 
@@ -28,7 +28,7 @@ class TransportPlannerTest {
     fun largeUnprotectedUsesDirectParallel() {
         assertEquals(
             UploadTransport.PARALLEL,
-            planTransport(direct, 16 * mib + 1, hasPassword = false),
+            planTransport(direct, 8 * mib + 1, hasPassword = false),
         )
         assertEquals(
             UploadTransport.PARALLEL,

@@ -19,11 +19,15 @@ const val DEFAULT_SERVER = "https://box.juicey.dev"
 const val CLIENT_HEADER = "X-Juicebox-Client"
 
 /** A single direct request is still cheaper than reserving parts. */
-const val DIRECT_SINGLE_MAX_BYTES = 16L * 1024 * 1024
+const val DIRECT_SINGLE_MAX_BYTES = 8L * 1024 * 1024
 
-/** Target part size for direct-parallel; smaller parts retry cheaply. */
-const val DIRECT_PART_TARGET_BYTES = 32L * 1024 * 1024
-const val DIRECT_PART_CONCURRENCY = 4
+/**
+ * Target part size for direct-parallel. Smaller parts retry cheaply and give
+ * every connection something to upload sooner; both apps open enough
+ * connections to saturate a fast link.
+ */
+const val DIRECT_PART_TARGET_BYTES = 8L * 1024 * 1024
+const val DIRECT_PART_CONCURRENCY = 8
 
 /** Unprotected files this large can use several TUS connections at once. */
 const val TUS_PARALLEL_THRESHOLD_BYTES = 64L * 1024 * 1024

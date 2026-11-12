@@ -16,6 +16,7 @@ final class LiveUploadActivity {
     private var filename = ""
     private var totalBytes: Int64 = 0
     private var lastReported = -1.0
+    private var lastPushedAt = Date.distantPast
     private var heartbeat: Task<Void, Never>?
 
     private var enabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
@@ -30,6 +31,7 @@ final class LiveUploadActivity {
         self.filename = filename.isEmpty ? "Upload" : filename
         self.totalBytes = totalBytes
         lastReported = 0
+        lastPushedAt = .distantPast
 
         let attributes = UploadActivityAttributes(server: server.isEmpty ? "Juicebox" : server)
         let state = UploadActivityAttributes.ContentState(
@@ -70,8 +72,14 @@ final class LiveUploadActivity {
     func report(progress: Double) {
         guard activity != nil else { return }
         let clamped = min(1, max(0, progress))
-        guard clamped - lastReported >= 0.02 || clamped >= 1 else { return }
+        // Small files finish between two 2% steps, and big files can sit on
+        // "0%" for a while. Push the first fraction and then at most once a
+        // second, which stays inside ActivityKit's update budget.
+        let advanced = clamped - lastReported >= 0.001
+        let due = Date().timeIntervalSince(lastPushedAt) >= 1
+        guard clamped >= 1 || (advanced && due) else { return }
         lastReported = clamped
+        lastPushedAt = Date()
         push(progress: clamped)
     }
 

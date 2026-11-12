@@ -128,7 +128,7 @@ struct UploadView: View {
                         Spacer(minLength: 0)
                     }
                 }
-                .padding(.bottom, 28)
+                .padding(.bottom, mode == .media ? 76 : 28)
                 .frame(minHeight: proxy.size.height, alignment: .top)
                 .animation(.easeInOut(duration: 0.24), value: mode)
                 .animation(.snappy(duration: 0.3), value: model.connection.connected)
@@ -138,6 +138,9 @@ struct UploadView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(palette.background.ignoresSafeArea())
+            .overlay(alignment: .bottomTrailing) {
+                pasteAction(palette)
+            }
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: [.item],
@@ -487,6 +490,78 @@ struct UploadView: View {
         .padding(.horizontal, 20)
     }
 
+    /// A one-tap shortcut for the usual Media flow: read the link the user
+    /// copied, start the fetch, and leave the field empty for the next one.
+    private func pasteAction(_ palette: JuicePalette) -> some View {
+        Group {
+            if mode == .media {
+                Button {
+                    pasteAndFetch()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+                .tint(palette.primary)
+                .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
+                .disabled(model.isUploading)
+                .accessibilityLabel("Paste link and fetch")
+                .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
+        }
+        .padding(.trailing, 20)
+        .padding(.bottom, 18)
+        .animation(.easeInOut(duration: 0.2), value: mode)
+    }
+
+    private func pasteAndFetch() {
+        guard let pasted = clipboardLink() else {
+            let pasteboard = UIPasteboard.general
+            model.flash(
+                pasteboard.hasStrings || pasteboard.hasURLs
+                    ? "Clipboard has no link"
+                    : "Clipboard is empty"
+            )
+            return
+        }
+        link = pasted
+        let started = model.fetchMedia(
+            url: pasted,
+            audioOnly: audioOnly,
+            quality: quality,
+            container: container,
+            audioFormat: audioFormat,
+            betterAudio: betterAudio
+        )
+        if started {
+            link = ""
+            linkFocused = false
+        }
+    }
+
+    /// Share sheets usually wrap the link in a title or a sentence, so take
+    /// the first http(s) URL out of whatever the clipboard holds.
+    private func clipboardLink() -> String? {
+        let pasteboard = UIPasteboard.general
+        if let url = pasteboard.url,
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https",
+           url.host != nil {
+            return url.absoluteString
+        }
+        guard pasteboard.hasStrings, let raw = pasteboard.string else { return nil }
+        let pattern = #"https?://[^\s<>"']+"#
+        guard let range = raw.range(of: pattern, options: [.regularExpression, .caseInsensitive])
+        else { return nil }
+        let trimmed = String(raw[range])
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)]}\"'"))
+        guard let url = URL(string: trimmed), url.host != nil else { return nil }
+        return trimmed
+    }
+
     private func actionRow(_ palette: JuicePalette) -> some View {
         HStack(spacing: 8) {
             Button {
@@ -578,10 +653,17 @@ struct UploadView: View {
     private func progressCard(_ palette: JuicePalette) -> some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                ProgressView(value: model.uploadProgress)
-                    .tint(palette.primary)
-                    .animation(.linear(duration: 0.2), value: model.uploadProgress)
-                Text("\(Int(model.uploadProgress * 100))%")
+                if model.uploadProgress > 0 {
+                    ProgressView(value: model.uploadProgress)
+                        .tint(palette.primary)
+                        .animation(.linear(duration: 0.2), value: model.uploadProgress)
+                } else {
+                    // Nothing has moved yet (reservation, cobalt probing), so
+                    // a spinner is honest where 0% just looks stuck.
+                    ProgressView()
+                        .tint(palette.primary)
+                }
+                Text(progressLabel)
                     .font(JuiceFont.mono(13, weight: .bold))
                     .foregroundStyle(palette.primary)
             }
@@ -595,6 +677,20 @@ struct UploadView: View {
                 .foregroundStyle(palette.onSurface)
         }
         .padding(.horizontal, 20)
+    }
+
+    private var progressLabel: String {
+        let progress = model.uploadProgress
+        if progress <= 0 {
+            return model.isFetching ? "Preparing" : "Starting"
+        }
+        let percent = progress * 100
+        if percent < 10 {
+            let tenths = Int(percent * 10)
+            if tenths <= 0 { return "<0.1%" }
+            return "\(tenths / 10).\(tenths % 10)%"
+        }
+        return "\(Int(percent))%"
     }
 
     private func resultCard(_ file: LibraryFile, _ palette: JuicePalette) -> some View {

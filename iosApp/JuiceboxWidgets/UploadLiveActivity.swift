@@ -124,7 +124,9 @@ private func percentText(_ state: UploadActivityAttributes.ContentState) -> Stri
     switch state.phase {
     case .finished: return "100%"
     case .failed: return "!"
-    case .uploading: return "\(Int((state.progress * 100).rounded()))%"
+    case .uploading:
+        if state.progress > 0 && state.progress < 0.01 { return "<1%" }
+        return "\(Int((state.progress * 100).rounded()))%"
     }
 }
 
