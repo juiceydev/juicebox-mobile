@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     @Published var selectedMinutes: Int32
     @Published var isUploading = false
     @Published var isFetching = false
+    @Published var isStaging = false
     @Published var uploadProgress = 0.0
     @Published var lastUpload: LibraryFile?
     @Published var toast: String?
@@ -193,35 +194,64 @@ final class AppModel: ObservableObject {
     // MARK: - Uploads
 
     func stageAndUpload(_ url: URL) {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer {
-            if scoped { url.stopAccessingSecurityScopedResource() }
+        guard !isStaging, !isUploading else {
+            flash("An upload is already running")
+            return
         }
         let name = url.lastPathComponent.isEmpty ? "file" : url.lastPathComponent
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("juicebox-\(UUID().uuidString)", isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let destination = directory.appendingPathComponent(name)
-            try FileManager.default.copyItem(at: url, to: destination)
-            let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
-                ?? "application/octet-stream"
-            startUpload(path: destination.path, filename: name, mime: mime)
-        } catch {
-            flash("Couldn't read that file")
+        isStaging = true
+        // A photo-library video can be gigabytes; copying it on the main
+        // thread froze the screen before the upload even started.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer {
+                if scoped { url.stopAccessingSecurityScopedResource() }
+            }
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("juicebox-\(UUID().uuidString)", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let destination = directory.appendingPathComponent(name)
+                try FileManager.default.copyItem(at: url, to: destination)
+                let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+                    ?? "application/octet-stream"
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.isStaging = false
+                    self.startUpload(path: destination.path, filename: name, mime: mime)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.isStaging = false
+                    self.flash("Couldn't read that file")
+                }
+            }
         }
     }
 
     func upload(_ data: Data, filename: String, mime: String) {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("juicebox-\(UUID().uuidString)", isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let destination = directory.appendingPathComponent(filename)
-            try data.write(to: destination)
-            startUpload(path: destination.path, filename: filename, mime: mime)
-        } catch {
-            flash("Couldn't stage that file")
+        guard !isStaging else { return }
+        isStaging = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("juicebox-\(UUID().uuidString)", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let destination = directory.appendingPathComponent(filename)
+                try data.write(to: destination)
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.isStaging = false
+                    self.startUpload(path: destination.path, filename: filename, mime: mime)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.isStaging = false
+                    self.flash("Couldn't stage that file")
+                }
+            }
         }
     }
 
@@ -317,7 +347,7 @@ final class AppModel: ObservableObject {
     }
 
     private func beginUpload(filename: String, size: Int64) -> Bool {
-        if isUploading {
+        if isUploading || isStaging {
             flash("An upload is already running")
             return false
         }

@@ -99,7 +99,7 @@ struct UploadView: View {
                             .transition(.opacity)
                     }
 
-                    if model.isUploading {
+                    if model.isUploading || model.isStaging {
                         progressCard(palette)
                             .transition(
                                 .asymmetric(
@@ -132,7 +132,7 @@ struct UploadView: View {
                 .frame(minHeight: proxy.size.height, alignment: .top)
                 .animation(.easeInOut(duration: 0.24), value: mode)
                 .animation(.snappy(duration: 0.3), value: model.connection.connected)
-                .animation(.spring(duration: 0.35), value: model.isUploading)
+                .animation(.spring(duration: 0.35), value: model.isUploading || model.isStaging)
                 .animation(.spring(duration: 0.35), value: model.lastUpload?.localId)
                 .animation(.easeOut(duration: 0.24), value: model.announcement?.message)
             }
@@ -485,6 +485,7 @@ struct UploadView: View {
         .tint(palette.primary)
         .disabled(
             model.isUploading ||
+            model.isStaging ||
             link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         )
         .padding(.horizontal, 20)
@@ -507,7 +508,7 @@ struct UploadView: View {
                 .controlSize(.large)
                 .tint(palette.primary)
                 .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
-                .disabled(model.isUploading)
+                .disabled(model.isUploading || model.isStaging)
                 .accessibilityLabel("Paste link and fetch")
                 .transition(.scale(scale: 0.9).combined(with: .opacity))
             }
@@ -644,6 +645,7 @@ struct UploadView: View {
             .tint(palette.primary)
             .disabled(
                 model.isUploading ||
+                model.isStaging ||
                 text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             )
         }
@@ -670,7 +672,7 @@ struct UploadView: View {
             .padding(.top, 4)
         } label: {
             Label(
-                model.isFetching ? "Fetching" : "Uploading",
+                model.isFetching ? "Fetching" : (model.isStaging ? "Preparing" : "Uploading"),
                 systemImage: model.isFetching ? "arrow.down.circle" : "arrow.up.circle"
             )
                 .font(JuiceFont.body(14, weight: .semibold))
@@ -680,6 +682,7 @@ struct UploadView: View {
     }
 
     private var progressLabel: String {
+        if model.isStaging { return "Reading file" }
         let progress = model.uploadProgress
         if progress <= 0 {
             return model.isFetching ? "Preparing" : "Starting"

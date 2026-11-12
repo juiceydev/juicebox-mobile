@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
@@ -43,6 +44,13 @@ class IosBridge(version: String) {
     private val container = IosAppContainer(version)
     private val core = container.core
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    /**
+     * Request bodies are produced by Ktor's Darwin engine on the calling
+     * thread; keeping that off the main queue stops a large upload from
+     * competing with the UI for frames. Results hop back to Main.
+     */
+    private val transferScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val appVersion: String = version
 
@@ -215,7 +223,7 @@ class IosBridge(version: String) {
         onProgress: (Double) -> Unit,
         completion: (LibraryFile?, String?) -> Unit,
     ) {
-        scope.launch {
+        transferScope.launch {
             try {
                 val settings = container.settingsStore.current()
                 val source = FileUploadSource.of(FileSystem.SYSTEM, path, filename, mimeType)
@@ -226,15 +234,22 @@ class IosBridge(version: String) {
                         host = settings.storageHost,
                         password = effectivePassword(settings),
                         quickLink = settings.quickLink,
-                        onProgress = { progress -> onProgress(progress.fraction.toDouble()) },
+                        onProgress = { progress ->
+                            val fraction = progress.fraction.toDouble()
+                            withContext(Dispatchers.Main) { onProgress(fraction) }
+                        },
                     ),
                 )
-                val file = core.recordUpload(result, sourcePath = path)
-                completion(file, null)
+                withContext(Dispatchers.Main) {
+                    val file = core.recordUpload(result, sourcePath = path)
+                    completion(file, null)
+                }
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (error: Throwable) {
-                completion(null, error.friendlyMessage())
+                withContext(Dispatchers.Main) {
+                    completion(null, error.friendlyMessage())
+                }
             }
         }
     }
@@ -286,7 +301,7 @@ class IosBridge(version: String) {
             completion(null, "Paste a link first")
             return
         }
-        scope.launch {
+        transferScope.launch {
             try {
                 val settings = container.settingsStore.current()
                 val file = core.fetchMedia(
@@ -305,15 +320,21 @@ class IosBridge(version: String) {
                         } else {
                             0.0
                         }
-                        onProgress(fraction, total, status.stage)
+                        withContext(Dispatchers.Main) {
+                            onProgress(fraction, total, status.stage)
+                        }
                     },
                 )
-                val recorded = core.recordFetch(file, sourceUri = link)
-                completion(recorded, null)
+                withContext(Dispatchers.Main) {
+                    val recorded = core.recordFetch(file, sourceUri = link)
+                    completion(recorded, null)
+                }
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (error: Throwable) {
-                completion(null, error.friendlyMessage())
+                withContext(Dispatchers.Main) {
+                    completion(null, error.friendlyMessage())
+                }
             }
         }
     }
