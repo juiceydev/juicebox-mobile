@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -104,6 +105,7 @@ import dev.juicey.juicebox.ui.components.SettingPicker
 import dev.juicey.juicebox.ui.components.SettingsGroup
 import dev.juicey.juicebox.ui.components.SettingsToggleRow
 import dev.juicey.juicebox.ui.components.TitleWordmark
+import dev.juicey.juicebox.ui.files.QrDialog
 import dev.juicey.juicebox.ui.formatBytes
 import dev.juicey.juicebox.ui.icons.JuiceboxIcons
 import dev.juicey.juicebox.ui.icons.juiceboxIcon
@@ -124,6 +126,7 @@ fun UploadScreen(
     var cameraTarget by remember { mutableStateOf<Uri?>(null) }
     var sessionOpen by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<SessionItem?>(null) }
+    var qrItem by remember { mutableStateOf<SessionItem?>(null) }
 
     val documentPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
@@ -270,23 +273,21 @@ fun UploadScreen(
                     }
                 }
 
-                AnimatedVisibility(
-                    visible = state.items.isNotEmpty(),
-                    enter = fadeIn(tween(190)) + expandVertically(
-                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 380f),
-                        expandFrom = Alignment.Top,
-                    ),
-                    exit = fadeOut(tween(120)) + shrinkVertically(
-                        animationSpec = tween(150),
-                        shrinkTowards = Alignment.Top,
-                    ),
-                ) {
-                    if (state.items.isNotEmpty()) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
-                            SessionPeek(items = state.items, onClick = { sessionOpen = true })
-                        }
+                Column {
+                    Spacer(Modifier.height(12.dp))
+                    val active = state.items.firstOrNull {
+                        it.status == TaskStatus.RUNNING || it.status == TaskStatus.QUEUED
                     }
+                    val quickLink = active?.linkFor(state.linkVariant)
+                    if (!quickLink.isNullOrBlank()) {
+                        QuickLinkCard(
+                            link = quickLink,
+                            onCopy = { viewModel.copyLink(quickLink) },
+                            onQr = { qrItem = active },
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    SessionPeek(items = state.items, onClick = { sessionOpen = true })
                 }
                 Spacer(Modifier.height(84.dp))
             }
@@ -301,7 +302,7 @@ fun UploadScreen(
         )
     }
 
-    if (sessionOpen && state.items.isNotEmpty()) {
+    if (sessionOpen) {
         SessionSheet(
             items = state.items,
             variant = state.linkVariant,
@@ -309,7 +310,15 @@ fun UploadScreen(
             onCopy = viewModel::copyLink,
             onRetry = viewModel::retry,
             onDelete = { deleteTarget = it },
+            onQr = { qrItem = it },
         )
+    }
+
+    qrItem?.let { item ->
+        val link = item.linkFor(state.linkVariant)
+        if (!link.isNullOrBlank()) {
+            QrDialog(link = link, onDismiss = { qrItem = null })
+        }
     }
 
     deleteTarget?.let { item ->
@@ -868,15 +877,67 @@ private fun OfflineNotice(state: UploadUiState, onRetry: () -> Unit) {
 }
 
 @Composable
+private fun QuickLinkCard(
+    link: String,
+    onCopy: () -> Unit,
+    onQr: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Link ready",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    link,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onQr) {
+                Icon(
+                    juiceboxIcon(JuiceboxIcons.qrCode),
+                    contentDescription = "QR code",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = onCopy) {
+                Icon(
+                    juiceboxIcon(JuiceboxIcons.copy),
+                    contentDescription = "Copy link",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SessionPeek(items: List<SessionItem>, onClick: () -> Unit) {
-    val latest = items.first()
-    val (detail, tint) = when (latest.status) {
+    val latest = items.firstOrNull()
+    val (detail, tint) = when (latest?.status) {
         TaskStatus.DONE -> (latest.link ?: "Uploaded") to MaterialTheme.colorScheme.tertiary
         TaskStatus.FAILED -> (latest.error ?: "Failed") to MaterialTheme.colorScheme.error
         TaskStatus.RUNNING -> "${(latest.fraction * 100).toInt()}%" to MaterialTheme.colorScheme.primary
-        else -> "Queued" to MaterialTheme.colorScheme.onSurfaceVariant
+        TaskStatus.QUEUED -> "Queued" to MaterialTheme.colorScheme.onSurfaceVariant
+        else -> "No uploads yet" to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val icon = when (latest.status) {
+    val icon = when (latest?.status) {
         TaskStatus.DONE -> JuiceboxIcons.check
         TaskStatus.FAILED -> JuiceboxIcons.warning
         else -> JuiceboxIcons.upload
@@ -909,7 +970,7 @@ private fun SessionPeek(items: List<SessionItem>, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    latest.name,
+                    latest?.name ?: "This session",
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -949,6 +1010,7 @@ private fun SessionSheet(
     onCopy: (String) -> Boolean,
     onRetry: (String) -> Unit,
     onDelete: (SessionItem) -> Unit,
+    onQr: (SessionItem) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -977,18 +1039,32 @@ private fun SessionSheet(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                items(items, key = { it.id }) { item ->
-                    SessionSheetItem(
-                        item = item,
-                        defaultVariant = variant,
-                        onCopy = onCopy,
-                        onRetry = { onRetry(item.id) },
-                        onDelete = { onDelete(item) },
+            if (items.isEmpty()) {
+                Box(
+                    Modifier.fillMaxWidth().heightIn(min = 160.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Uploads from this device appear here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    items(items, key = { it.id }) { item ->
+                        SessionSheetItem(
+                            item = item,
+                            defaultVariant = variant,
+                            onCopy = onCopy,
+                            onRetry = { onRetry(item.id) },
+                            onDelete = { onDelete(item) },
+                            onQr = { onQr(item) },
+                        )
+                    }
                 }
             }
         }
@@ -1015,7 +1091,14 @@ private fun SessionSheetItem(
     onCopy: (String) -> Boolean,
     onRetry: () -> Unit,
     onDelete: () -> Unit,
+    onQr: () -> Unit,
 ) {
+    val barFraction by animateFloatAsState(
+        targetValue = item.fraction,
+        animationSpec = tween(160),
+        label = "session-progress",
+    )
+    val link = item.linkFor(defaultVariant)
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -1030,6 +1113,16 @@ private fun SessionSheetItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (!link.isNullOrBlank()) {
+                IconButton(onClick = onQr) {
+                    Icon(
+                        juiceboxIcon(JuiceboxIcons.qrCode),
+                        contentDescription = "QR code",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             if (item.status == TaskStatus.DONE) {
                 IconButton(onClick = onDelete) {
@@ -1047,7 +1140,7 @@ private fun SessionSheetItem(
             TaskStatus.RUNNING, TaskStatus.QUEUED -> {
                 Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
-                    progress = { item.fraction },
+                    progress = { barFraction },
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1069,6 +1162,10 @@ private fun SessionSheetItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (!link.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    LinkCopyRow(link = link, onCopy = onCopy)
+                }
             }
 
             TaskStatus.FAILED -> {
