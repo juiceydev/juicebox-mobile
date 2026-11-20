@@ -33,6 +33,22 @@ data class IosTtlOption(
     val label: String,
 )
 
+/** Exact transfer counters, so Swift can draw a bar that matches the bytes. */
+data class IosUploadProgress(
+    val fraction: Double,
+    val sentBytes: Double,
+    val totalBytes: Double,
+    val bytesPerSecond: Double,
+)
+
+/** The links the server mints at reservation time, before any bytes move. */
+data class IosReservedLink(
+    val url: String,
+    val rawUrl: String,
+    val downloadUrl: String,
+    val deleteToken: String,
+)
+
 private val FALLBACK_TTL_HOURS = listOf(0.5, 1.0, 6.0, 12.0, 24.0, 72.0, 168.0)
 
 /**
@@ -220,8 +236,9 @@ class IosBridge(version: String) {
         filename: String,
         mimeType: String,
         ttlMinutes: Int,
-        onProgress: (Double) -> Unit,
+        onProgress: (IosUploadProgress) -> Unit,
         completion: (LibraryFile?, String?) -> Unit,
+        onReserved: ((IosReservedLink) -> Unit)? = null,
     ) {
         transferScope.launch {
             try {
@@ -234,9 +251,25 @@ class IosBridge(version: String) {
                         host = settings.storageHost,
                         password = effectivePassword(settings),
                         quickLink = settings.quickLink,
+                        onReserved = { reserved ->
+                            if (onReserved != null) {
+                                val link = IosReservedLink(
+                                    url = reserved.url,
+                                    rawUrl = reserved.rawUrl,
+                                    downloadUrl = reserved.downloadUrl,
+                                    deleteToken = reserved.deleteToken,
+                                )
+                                withContext(Dispatchers.Main) { onReserved(link) }
+                            }
+                        },
                         onProgress = { progress ->
-                            val fraction = progress.fraction.toDouble()
-                            withContext(Dispatchers.Main) { onProgress(fraction) }
+                            val snapshot = IosUploadProgress(
+                                fraction = progress.fraction.toDouble(),
+                                sentBytes = progress.sentBytes.toDouble(),
+                                totalBytes = progress.totalBytes.toDouble(),
+                                bytesPerSecond = progress.bytesPerSecond.toDouble(),
+                            )
+                            withContext(Dispatchers.Main) { onProgress(snapshot) }
                         },
                     ),
                 )
@@ -257,8 +290,9 @@ class IosBridge(version: String) {
     fun saveText(
         text: String,
         ttlMinutes: Int,
-        onProgress: (Double) -> Unit,
+        onProgress: (IosUploadProgress) -> Unit,
         completion: (LibraryFile?, String?) -> Unit,
+        onReserved: ((IosReservedLink) -> Unit)? = null,
     ) {
         if (text.isBlank()) {
             completion(null, "Nothing to save")
@@ -278,6 +312,7 @@ class IosBridge(version: String) {
             ttlMinutes = ttlMinutes,
             onProgress = onProgress,
             completion = completion,
+            onReserved = onReserved,
         )
     }
 

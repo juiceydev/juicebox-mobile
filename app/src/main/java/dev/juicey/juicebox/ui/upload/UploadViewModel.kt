@@ -69,7 +69,7 @@ data class UploadUiState(
     val error: String? = null,
     val items: List<SessionItem> = emptyList(),
 ) {
-    val maxFileSize: Long get() = config?.maxFileSizeBytes ?: (500L * 1024 * 1024)
+    val maxFileSize: Long get() = config?.maxFileSizeBytes(ttlHours) ?: (500L * 1024 * 1024)
     val canVideo: Boolean get() = config?.cobalt == true
     val uploading: Boolean get() = items.any { it.status == TaskStatus.QUEUED || it.status == TaskStatus.RUNNING }
 }

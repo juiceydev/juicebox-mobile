@@ -20,7 +20,16 @@ final class AppModel: ObservableObject {
     @Published var isUploading = false
     @Published var isFetching = false
     @Published var isStaging = false
+    /// The true fraction from the transfer engine; the text and Live Activity
+    /// read this one.
     @Published var uploadProgress = 0.0
+    /// Eased towards `uploadProgress` so the bar never jumps between updates.
+    @Published var displayProgress = 0.0
+    @Published var uploadBytesSent: Int64 = 0
+    @Published var uploadBytesTotal: Int64 = 0
+    @Published var uploadSpeed: Double = 0
+    @Published var reservedUrl: String?
+    @Published var sessionItems: [UploadSessionItem] = []
     @Published var lastUpload: LibraryFile?
     @Published var toast: String?
     @Published var communityHosts: [StorageHost] = []
@@ -28,6 +37,8 @@ final class AppModel: ObservableObject {
 
     private var subscriptions: [IosSubscription] = []
     private var toastTask: Task<Void, Never>?
+    private var progressTicker: Timer?
+    private var currentSessionId: String?
 
     init() {
         let bridge = JuiceboxRuntime.bridge
@@ -40,6 +51,13 @@ final class AppModel: ObservableObject {
         self.ttlOptions = bridge.ttlOptions()
         self.selectedMinutes = bridge.defaultTtlMinutes()
         self.announcement = nil
+
+        var restored = UploadSessionStore.load()
+        for index in restored.indices where restored[index].isActive {
+            restored[index].status = "failed"
+            restored[index].error = "Interrupted"
+        }
+        self.sessionItems = restored
 
         if Self.demoLibrary {
             self.files = bridge.screenshotFiles()
@@ -128,6 +146,13 @@ final class AppModel: ObservableObject {
 
     var selectedTtl: Double { Double(selectedMinutes) / 60 }
 
+    /// The server's size allowance shrinks as retention grows; never compare
+    /// a picked file against the old single global cap.
+    var maxUploadBytes: Int64 {
+        guard let config else { return 500 * 1024 * 1024 }
+        return config.maxFileSizeBytes(ttlHours: selectedTtl)
+    }
+
     var serverHost: String {
         URL(string: settings.serverUrl)?.host ?? settings.serverUrl
     }
@@ -192,6 +217,73 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Uploads
+
+    private func apply(_ progress: IosUploadProgress) {
+        uploadProgress = progress.fraction
+        uploadBytesSent = Int64(progress.sentBytes)
+        uploadBytesTotal = Int64(progress.totalBytes)
+        uploadSpeed = progress.bytesPerSecond
+        updateSession(currentSessionId) { item in
+            item.status = "uploading"
+            item.fraction = progress.fraction
+            item.bytesSent = uploadBytesSent
+            item.sizeBytes = uploadBytesTotal
+            item.speed = progress.bytesPerSecond
+        }
+        LiveUploadActivity.shared.report(
+            progress: progress.fraction,
+            totalBytes: uploadBytesTotal
+        )
+    }
+
+    private func updateSession(
+        _ id: String?,
+        _ change: (inout UploadSessionItem) -> Void
+    ) {
+        guard let id, let index = sessionItems.firstIndex(where: { $0.id == id }) else { return }
+        change(&sessionItems[index])
+        persistSessionItems()
+    }
+
+    private func persistSessionItems() {
+        sessionItems = UploadSessionStore.prune(sessionItems)
+        UploadSessionStore.save(sessionItems)
+    }
+
+    func removeSessionItem(_ id: String) {
+        sessionItems.removeAll { $0.id == id }
+        persistSessionItems()
+    }
+
+    func clearSessionUploads() {
+        sessionItems.removeAll { !$0.isActive }
+        persistSessionItems()
+    }
+
+    /// The core reports exact bytes every 100 ms; easing between those samples
+    /// keeps the bar moving without lying about the percentage.
+    private func startProgressTicker() {
+        stopProgressTicker()
+        displayProgress = 0
+        let ticker = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) {
+            [weak self] _ in
+            guard let self else { return }
+            let delta = self.uploadProgress - self.displayProgress
+            if abs(delta) < 0.002 {
+                self.displayProgress = self.uploadProgress
+            } else {
+                self.displayProgress += delta * 0.28
+            }
+            if self.uploadProgress >= 1 { self.stopProgressTicker() }
+        }
+        RunLoop.main.add(ticker, forMode: .common)
+        progressTicker = ticker
+    }
+
+    private func stopProgressTicker() {
+        progressTicker?.invalidate()
+        progressTicker = nil
+    }
 
     func stageAndUpload(_ url: URL) {
         guard !isStaging, !isUploading else {
@@ -273,12 +365,19 @@ final class AppModel: ObservableObject {
             text: text,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                let progress = value.doubleValue
-                self?.uploadProgress = progress
-                LiveUploadActivity.shared.report(progress: progress)
+                self?.apply(value)
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
+            },
+            onReserved: { [weak self] link in
+                self?.reservedUrl = link.url
+                self?.updateSession(self?.currentSessionId) { item in
+                    item.url = link.url
+                    item.rawUrl = link.rawUrl
+                    item.downloadUrl = link.downloadUrl
+                    item.deleteToken = link.deleteToken
+                }
             }
         )
     }
@@ -316,11 +415,10 @@ final class AppModel: ObservableObject {
             betterAudio: betterAudio,
             onProgress: { [weak self] fraction, total, _ in
                 let progress = fraction.doubleValue
+                let bytes = Int64(total.doubleValue)
                 self?.uploadProgress = progress
-                LiveUploadActivity.shared.report(
-                    progress: progress,
-                    totalBytes: Int64(total.doubleValue)
-                )
+                self?.uploadBytesTotal = bytes
+                LiveUploadActivity.shared.report(progress: progress, totalBytes: bytes)
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
@@ -332,8 +430,9 @@ final class AppModel: ObservableObject {
     private func startUpload(path: String, filename: String, mime: String) {
         let attributes = try? FileManager.default.attributesOfItem(atPath: path)
         let size = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
-        if let max = config?.maxFileSizeBytes, max > 0, size > max {
-            flash("Too large. This server allows \(JuiceFormat.bytes(max))")
+        let max = maxUploadBytes
+        if max > 0, size > max {
+            flash("Too large. This server allows \(JuiceFormat.bytes(max)) for this retention")
             return
         }
         guard beginUpload(filename: filename, size: size) else { return }
@@ -343,12 +442,19 @@ final class AppModel: ObservableObject {
             mimeType: mime,
             ttlMinutes: selectedMinutes,
             onProgress: { [weak self] value in
-                let progress = value.doubleValue
-                self?.uploadProgress = progress
-                LiveUploadActivity.shared.report(progress: progress)
+                self?.apply(value)
             },
             completion: { [weak self] file, error in
                 self?.finishUpload(file: file, error: error)
+            },
+            onReserved: { [weak self] link in
+                self?.reservedUrl = link.url
+                self?.updateSession(self?.currentSessionId) { item in
+                    item.url = link.url
+                    item.rawUrl = link.rawUrl
+                    item.downloadUrl = link.downloadUrl
+                    item.deleteToken = link.deleteToken
+                }
             }
         )
     }
@@ -360,7 +466,29 @@ final class AppModel: ObservableObject {
         }
         isUploading = true
         uploadProgress = 0
+        displayProgress = 0
+        uploadBytesSent = 0
+        uploadBytesTotal = size
+        uploadSpeed = 0
+        reservedUrl = nil
         lastUpload = nil
+        let sessionId = UUID().uuidString
+        currentSessionId = sessionId
+        sessionItems.insert(
+            UploadSessionItem(
+                id: sessionId,
+                name: filename,
+                startedAt: Date(),
+                status: "uploading",
+                fraction: 0,
+                bytesSent: 0,
+                sizeBytes: size,
+                speed: 0
+            ),
+            at: 0
+        )
+        persistSessionItems()
+        startProgressTicker()
         LiveUploadActivity.shared.start(filename: filename, totalBytes: size, server: serverHost)
         return true
     }
@@ -368,8 +496,29 @@ final class AppModel: ObservableObject {
     private func finishUpload(file: LibraryFile?, error: String?) {
         isUploading = false
         isFetching = false
+        stopProgressTicker()
+        let sessionId = currentSessionId
+        currentSessionId = nil
+        updateSession(sessionId) { item in
+            if let file {
+                item.status = "done"
+                item.fraction = 1
+                item.bytesSent = file.sizeBytes
+                item.sizeBytes = file.sizeBytes
+                item.libraryId = file.localId
+                item.url = file.url
+                item.rawUrl = file.rawUrl
+                item.downloadUrl = file.downloadUrl
+                item.deleteToken = file.deleteToken
+                item.error = nil
+            } else {
+                item.status = "failed"
+                item.error = error ?? "Upload failed"
+            }
+        }
         if let file {
             uploadProgress = 1
+            displayProgress = 1
             lastUpload = file
             let shareLink = link(file, variant: settings.linkVariant)
             if settings.autoCopy {
@@ -482,6 +631,20 @@ final class AppModel: ObservableObject {
         case "raw": return file.rawUrl.isEmpty ? swapPrefix(file.url, "f") : file.rawUrl
         case "download": return file.downloadUrl.isEmpty ? swapPrefix(file.url, "d") : file.downloadUrl
         default: return file.url.isEmpty ? file.rawUrl : file.url
+        }
+    }
+
+    func link(_ item: UploadSessionItem, variant: String) -> String {
+        let url = item.url ?? ""
+        switch variant {
+        case "raw":
+            if let raw = item.rawUrl, !raw.isEmpty { return raw }
+            return swapPrefix(url, "f")
+        case "download":
+            if let download = item.downloadUrl, !download.isEmpty { return download }
+            return swapPrefix(url, "d")
+        default:
+            return url.isEmpty ? (item.rawUrl ?? "") : url
         }
     }
 

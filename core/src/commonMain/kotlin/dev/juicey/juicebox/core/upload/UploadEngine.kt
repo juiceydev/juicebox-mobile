@@ -113,6 +113,10 @@ class UploadEngine(
         require(request.source.size > 0) { "Refusing to upload an empty file" }
 
         val config = configProvider()
+        val limit = config.maxFileSizeBytes(request.ttlHours)
+        if (limit > 0 && request.source.size > limit) {
+            throw IllegalArgumentException("Too large for this retention")
+        }
         val planned = request.transport
             ?: planTransport(config, request.source.size, !request.password.isNullOrEmpty())
 

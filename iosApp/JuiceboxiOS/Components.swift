@@ -1,6 +1,8 @@
+import CoreImage.CIFilterBuiltins
 import Foundation
 import JuiceboxCore
 import SwiftUI
+import UIKit
 
 // MARK: - Liquid Glass
 
@@ -52,6 +54,49 @@ struct ListRowSurface: View {
         } else {
             palette.surfaceContainerLow
         }
+    }
+}
+
+/// The same QR artwork for file cards and the session sheet.
+struct QrCodeView: View {
+    let value: String
+    var size: CGFloat = 190
+
+    private var image: UIImage? {
+        guard !value.isEmpty else { return nil }
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(value.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let colored = output.applyingFilter(
+            "CIFalseColor",
+            parameters: [
+                "inputColor0": CIColor(color: .black),
+                "inputColor1": CIColor(color: .white),
+            ]
+        )
+        let scaled = colored.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+        let context = CIContext()
+        guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cg)
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "qrcode")
+                    .font(.system(size: size / 3))
+                    .foregroundStyle(.black)
+            }
+        }
+        .frame(width: size, height: size)
+        .padding(10)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

@@ -75,9 +75,10 @@ class UploadRunner(
             throw IllegalStateException("The cached copy was cleaned up, share the file again")
         }
         val size = localFile.length().takeIf { it > 0 } ?: task.sizeBytes
-        if (config.maxFileSizeBytes > 0 && size > config.maxFileSizeBytes) {
+        val limit = config.maxFileSizeBytes(task.ttlHours)
+        if (limit > 0 && size > limit) {
             throw IllegalArgumentException(
-                "Too large - this server allows ${formatBytes(config.maxFileSizeBytes)}",
+                "Too large - this server allows ${formatBytes(limit)} for this retention",
             )
         }
 
@@ -96,6 +97,16 @@ class UploadRunner(
                 password = task.password,
                 quickLink = task.quickLink,
                 transport = null,
+                onReserved = { reserved ->
+                    tasks.update(task.localId) {
+                        it.copy(
+                            resultLink = reserved.url,
+                            resultRawLink = reserved.rawUrl,
+                            resultDownloadLink = reserved.downloadUrl,
+                            resultDeleteToken = reserved.deleteToken,
+                        )
+                    }
+                },
                 onProgress = { progress ->
                     _progress.update { it + (task.localId to progress) }
                 },

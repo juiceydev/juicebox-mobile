@@ -225,9 +225,12 @@ struct SettingsView: View {
 
             if let config = model.config {
                 Section("Limits") {
+                    let hard = config.maxFileSizeHardBytes > 0
+                        ? config.maxFileSizeHardBytes
+                        : config.maxFileSizeBytes
                     LabeledContent(
                         "Largest file",
-                        value: JuiceFormat.bytes(config.maxFileSizeBytes)
+                        value: JuiceFormat.bytes(hard)
                     )
                     LabeledContent(
                         "Retention",

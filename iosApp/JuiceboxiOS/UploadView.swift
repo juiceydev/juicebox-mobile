@@ -12,6 +12,7 @@ struct UploadView: View {
     @State private var mode: UploadMode = .files
     @State private var showFileImporter = false
     @State private var showCamera = false
+    @State private var showSession = false
     @State private var photoItem: PhotosPickerItem?
     @State private var text = ""
     @State private var link = ""
@@ -120,6 +121,11 @@ struct UploadView: View {
                             .id(file.localId)
                     }
 
+                    if !model.sessionItems.isEmpty {
+                        sessionPeek(palette)
+                            .transition(.opacity)
+                    }
+
                     if model.settings.lockUploads {
                         lockNote(palette)
                     }
@@ -140,6 +146,10 @@ struct UploadView: View {
             .background(palette.background.ignoresSafeArea())
             .overlay(alignment: .bottomTrailing) {
                 pasteAction(palette)
+            }
+            .sheet(isPresented: $showSession) {
+                SessionSheet()
+                    .environmentObject(model)
             }
             .fileImporter(
                 isPresented: $showFileImporter,
@@ -249,6 +259,9 @@ struct UploadView: View {
                         .font(JuiceFont.body(16, weight: .medium))
                         .foregroundStyle(palette.primary)
                 }
+                Text("Up to \(JuiceFormat.bytes(model.maxUploadBytes))")
+                    .font(JuiceFont.mono(11))
+                    .foregroundStyle(palette.onSurfaceVariant)
                 Slider(
                     value: Binding(
                         get: { Double(ttlIndex) },
@@ -652,22 +665,82 @@ struct UploadView: View {
         .padding(.horizontal, 20)
     }
 
+    private func sessionPeek(_ palette: JuicePalette) -> some View {
+        Button {
+            showSession = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(palette.primary)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This session")
+                        .font(JuiceFont.body(14, weight: .semibold))
+                        .foregroundStyle(palette.onSurface)
+                    Text("\(model.sessionItems.count) uploads, latest \(model.sessionItems.first?.name ?? "")")
+                        .font(JuiceFont.mono(11))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.onSurfaceVariant)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(palette.surfaceContainerLow)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .accessibilityLabel("Open this session")
+    }
+
     private func progressCard(_ palette: JuicePalette) -> some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 if model.uploadProgress > 0 {
-                    ProgressView(value: model.uploadProgress)
+                    ProgressView(value: model.displayProgress)
                         .tint(palette.primary)
-                        .animation(.linear(duration: 0.2), value: model.uploadProgress)
                 } else {
                     // Nothing has moved yet (reservation, cobalt probing), so
                     // a spinner is honest where 0% just looks stuck.
                     ProgressView()
                         .tint(palette.primary)
                 }
-                Text(progressLabel)
-                    .font(JuiceFont.mono(13, weight: .bold))
-                    .foregroundStyle(palette.primary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(progressLabel)
+                        .font(JuiceFont.mono(13, weight: .bold))
+                        .foregroundStyle(palette.primary)
+                    Spacer(minLength: 8)
+                    if model.uploadSpeed > 0, model.isUploading {
+                        Text("\(JuiceFormat.bytes(Int64(model.uploadSpeed)))/s")
+                            .font(JuiceFont.mono(11))
+                            .foregroundStyle(palette.onSurfaceVariant)
+                    }
+                }
+                if model.isUploading, let url = model.reservedUrl {
+                    HStack(spacing: 8) {
+                        if let link = URL(string: url) {
+                            Link(url, destination: link)
+                        } else {
+                            Text(url)
+                        }
+                        Button {
+                            UIPasteboard.general.string = url
+                            model.flash("Link copied")
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Copy link")
+                    }
+                    .font(JuiceFont.mono(11))
+                    .lineLimit(1)
+                }
             }
             .padding(.top, 4)
         } label: {

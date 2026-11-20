@@ -420,7 +420,12 @@ private fun ServerPage(
 
         state.config?.let { config ->
             SettingsGroup {
-                SettingsInfoRow("Largest file", formatBytes(config.maxFileSizeBytes))
+                SettingsInfoRow(
+                    "Largest file",
+                    formatBytes(
+                        config.maxFileSizeHardBytes.takeIf { it > 0 } ?: config.maxFileSizeBytes,
+                    ),
+                )
                 HairlineDivider()
                 SettingsInfoRow("Retention", "up to ${formatTtl(config.maxTtlHours)}")
             }

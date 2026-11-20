@@ -12,6 +12,14 @@ data class ServerConfig(
     val status: String = "ok",
     val version: String = "",
     @SerialName("max_file_size_bytes") val maxFileSizeBytes: Long = 500L * 1024 * 1024,
+    /**
+     * The largest cap across all retention choices. Used as a floor for older
+     * hosts that do not advertise per-retention limits yet.
+     */
+    @SerialName("max_file_size_hard_bytes") val maxFileSizeHardBytes: Long = 0L,
+    /** Caps keyed by retention in hours, e.g. `"72": 8053063680`. */
+    @SerialName("max_file_size_by_ttl_hours")
+    val maxFileSizeByTtlHours: Map<String, Long> = emptyMap(),
     @SerialName("default_ttl_hours") val defaultTtlHours: Double = 24.0,
     @SerialName("allowed_ttl_hours") val allowedTtlHours: List<Double> =
         listOf(0.5, 1.0, 6.0, 12.0, 24.0, 72.0, 168.0),
@@ -39,7 +47,27 @@ data class ServerConfig(
 
     /** Highest TTL the server will accept, used to clamp restored settings. */
     val maxTtlHours: Double get() = allowedTtlHours.maxOrNull() ?: defaultTtlHours
+
+    /**
+     * The cap for one retention choice. Newer hosts shrink the allowance as
+     * retention grows, so a single global number is no longer enough. Older
+     * hosts only send `max_file_size_bytes`, which stays the fallback.
+     */
+    fun maxFileSizeBytes(ttlHours: Double): Long {
+        val key = if (ttlHours % 1.0 == 0.0) ttlHours.toLong().toString() else ttlHours.toString()
+        val mapped = maxFileSizeByTtlHours[key]
+            ?: maxFileSizeByTtlHours.entries.firstOrNull { (hours, _) ->
+                hours.toDoubleOrNull()?.let { abs(it - ttlHours) < 0.001 } == true
+            }?.value
+        val fallback = maxFileSizeBytes.takeIf { it > 0 }
+            ?: maxFileSizeHardBytes.takeIf { it > 0 }
+            ?: Long.MAX_VALUE
+        val hard = maxFileSizeHardBytes.takeIf { it > 0 } ?: Long.MAX_VALUE
+        return (mapped ?: fallback).coerceAtMost(hard)
+    }
 }
+
+private fun abs(value: Double): Double = if (value < 0) -value else value
 
 @Serializable
 data class FilePair(

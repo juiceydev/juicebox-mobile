@@ -87,6 +87,8 @@ struct FilesView: View {
 }
 
 struct FileRow: View {
+    @Environment(\.openURL) private var openURL
+
     let file: LibraryFile
     let palette: JuicePalette
 
@@ -98,27 +100,41 @@ struct FileRow: View {
         file.status == "queued" || file.status == "uploading"
     }
 
+    private var isAudio: Bool { file.mimeType.hasPrefix("audio/") }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 12) {
-                Image(systemName: JuiceFormat.mimeSymbol(file.mimeType))
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(palette.onSurfaceVariant)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        palette.surfaceContainerHigh,
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    )
+                NavigationLink(value: file.localId) {
+                    HStack(spacing: 12) {
+                        FileThumbnail(file: file, palette: palette)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(file.filename.isEmpty ? "Untitled" : file.filename)
+                                .font(JuiceFont.body(16, weight: .semibold))
+                                .foregroundStyle(palette.onSurface)
+                                .lineLimit(1)
+                            Text(meta)
+                                .font(JuiceFont.mono(12))
+                                .foregroundStyle(
+                                    isFailed ? palette.error : palette.onSurfaceVariant
+                                )
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(file.filename.isEmpty ? "Untitled" : file.filename)
-                        .font(JuiceFont.body(16, weight: .semibold))
-                        .foregroundStyle(palette.onSurface)
-                        .lineLimit(1)
-                    Text(meta)
-                        .font(JuiceFont.mono(12))
-                        .foregroundStyle(isFailed ? palette.error : palette.onSurfaceVariant)
-                        .lineLimit(1)
+                if isAudio {
+                    Button {
+                        let link = file.url.isEmpty ? file.rawUrl : file.url
+                        if let url = URL(string: link) { openURL(url) }
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(palette.primary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Play \(file.filename)")
                 }
             }
 
@@ -145,5 +161,44 @@ struct FileRow: View {
         let size = JuiceFormat.bytes(file.sizeBytes)
         let left = JuiceFormat.timeLeft(expiresAt: file.expiresAt)
         return "\(size), \(left)"
+    }
+}
+
+/// A real preview for images and video; every other type keeps a tappable
+/// symbol tile so all file cards still lead to the detail screen.
+struct FileThumbnail: View {
+    let file: LibraryFile
+    let palette: JuicePalette
+    var size: CGFloat = 44
+
+    private var hasPreview: Bool {
+        (file.mimeType.hasPrefix("image/") || file.mimeType.hasPrefix("video/")) &&
+            !file.rawUrl.isEmpty
+    }
+
+    var body: some View {
+        ZStack {
+            palette.surfaceContainerHigh
+            if hasPreview, let url = URL(string: file.rawUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        symbol
+                    }
+                }
+            } else {
+                symbol
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.34, style: .continuous))
+    }
+
+    private var symbol: some View {
+        Image(systemName: JuiceFormat.mimeSymbol(file.mimeType))
+            .font(.system(size: size * 0.39, weight: .medium))
+            .foregroundStyle(palette.onSurfaceVariant)
     }
 }

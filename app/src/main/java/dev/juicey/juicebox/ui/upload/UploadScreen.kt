@@ -224,6 +224,12 @@ fun UploadScreen(
                     onSelect = viewModel::setTtl,
                     modifier = Modifier.padding(top = 10.dp),
                 )
+                Text(
+                    "Up to ${formatBytes(state.maxFileSize)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
 
                 HorizontalPager(
                     state = pagerState,
