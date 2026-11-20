@@ -229,9 +229,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, modifier: Modifier = Modifier) 
                         onClear = viewModel::clearLibrary,
                     )
                     SettingsPage.ABOUT -> AboutPage(
-                        state = state,
                         modifier = scopeModifier,
-                        onOpenSession = { page = SettingsPage.SESSION },
                         onForget = viewModel::forgetIdentity,
                         onOpenSite = { uriHandler.openUri(state.savedServer) },
                     )
@@ -823,9 +821,7 @@ private fun LibraryPage(
 
 @Composable
 private fun AboutPage(
-    state: SettingsUiState,
     modifier: Modifier,
-    onOpenSession: () -> Unit,
     onForget: () -> Unit,
     onOpenSite: () -> Unit,
 ) {
@@ -852,13 +848,6 @@ private fun AboutPage(
                     )
                 }
             }
-            HairlineDivider()
-            SettingsNavRow(
-                icon = JuiceboxIcons.smartphone,
-                title = "This session",
-                value = if (state.hasSession) "Active" else "None",
-                onClick = onOpenSession,
-            )
             HairlineDivider()
             SettingsActionRow(
                 icon = JuiceboxIcons.globe,

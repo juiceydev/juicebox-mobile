@@ -654,7 +654,6 @@ struct SettingsView: View {
     // MARK: - About
 
     private func aboutPage(_ palette: JuicePalette) -> some View {
-        let active = model.connection.connected
         return settingsList(palette) {
             Section {
                 HStack(spacing: 14) {
@@ -674,13 +673,6 @@ struct SettingsView: View {
             .listRowBackground(ListRowSurface(palette: palette))
 
             Section {
-                NavigationLink(value: SettingsPage.session) {
-                    Label("This session", systemImage: "iphone")
-                        .foregroundStyle(palette.onSurface)
-                    Spacer()
-                    Text(active ? "Active" : "None")
-                        .foregroundStyle(palette.onSurfaceVariant)
-                }
                 Button {
                     openSite()
                 } label: {
