@@ -11,12 +11,12 @@ struct UploadSessionItem: Identifiable, Codable {
     var bytesSent: Int64
     var sizeBytes: Int64
     var speed: Double
-    var url: String?
-    var rawUrl: String?
-    var downloadUrl: String?
-    var deleteToken: String?
-    var libraryId: String?
-    var error: String?
+    var url: String? = nil
+    var rawUrl: String? = nil
+    var downloadUrl: String? = nil
+    var deleteToken: String? = nil
+    var libraryId: String? = nil
+    var error: String? = nil
 
     var isActive: Bool { status == "queued" || status == "uploading" }
     var isDone: Bool { status == "done" }

@@ -26,10 +26,8 @@ struct FilesView: View {
             List {
                 Section {
                     ForEach(filtered, id: \.localId) { file in
-                        NavigationLink(value: file.localId) {
-                            FileRow(file: file, palette: palette)
-                        }
-                        .listRowBackground(ListRowSurface(palette: palette))
+                        FileRow(file: file, palette: palette)
+                            .listRowBackground(ListRowSurface(palette: palette))
                     }
                 } footer: {
                     if !model.files.isEmpty {
