@@ -58,6 +58,9 @@ final class AppModel: ObservableObject {
             restored[index].error = "Interrupted"
         }
         self.sessionItems = restored
+        if ProcessInfo.processInfo.environment["JUICEBOX_DEMO_SESSION"] == "1" {
+            self.sessionItems = UploadSessionStore.demoItems()
+        }
 
         if Self.demoLibrary {
             self.files = bridge.screenshotFiles()

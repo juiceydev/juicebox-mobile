@@ -35,6 +35,41 @@ enum UploadSessionStore {
         return prune(decoded)
     }
 
+    /// Fixed entries for screenshot runs, so the session sheet can be captured
+    /// without waiting for a real transfer.
+    static func demoItems() -> [UploadSessionItem] {
+        let now = Date()
+        let size: Int64 = 248 * 1024 * 1024
+        return [
+            UploadSessionItem(
+                id: "demo-session-1",
+                name: "holiday-clip.mp4",
+                startedAt: now.addingTimeInterval(-48),
+                status: "done",
+                fraction: 1,
+                bytesSent: size,
+                sizeBytes: size,
+                speed: 61 * 1024 * 1024,
+                url: "https://f.juicey.dev/v/demo0001.mp4",
+                rawUrl: "https://f.juicey.dev/f/demo0001.mp4",
+                downloadUrl: "https://f.juicey.dev/d/demo0001.mp4"
+            ),
+            UploadSessionItem(
+                id: "demo-session-2",
+                name: "mixdown.wav",
+                startedAt: now.addingTimeInterval(-190),
+                status: "done",
+                fraction: 1,
+                bytesSent: 34 * 1024 * 1024,
+                sizeBytes: 34 * 1024 * 1024,
+                speed: 28 * 1024 * 1024,
+                url: "https://f.juicey.dev/v/demo0002.wav",
+                rawUrl: "https://f.juicey.dev/f/demo0002.wav",
+                downloadUrl: "https://f.juicey.dev/d/demo0002.wav"
+            ),
+        ]
+    }
+
     static func save(_ items: [UploadSessionItem]) {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

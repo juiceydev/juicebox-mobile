@@ -45,6 +45,9 @@ struct UploadView: View {
            let start = UploadMode(rawValue: raw.capitalized) {
             _mode = State(initialValue: start)
         }
+        if ProcessInfo.processInfo.environment["JUICEBOX_DEMO_SESSION"] == "1" {
+            _showSession = State(initialValue: true)
+        }
     }
 
     var body: some View {
