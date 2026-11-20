@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -46,6 +47,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -275,18 +277,6 @@ fun UploadScreen(
 
                 Column {
                     Spacer(Modifier.height(12.dp))
-                    val active = state.items.firstOrNull {
-                        it.status == TaskStatus.RUNNING || it.status == TaskStatus.QUEUED
-                    }
-                    val quickLink = active?.linkFor(state.linkVariant)
-                    if (!quickLink.isNullOrBlank()) {
-                        QuickLinkCard(
-                            link = quickLink,
-                            onCopy = { viewModel.copyLink(quickLink) },
-                            onQr = { qrItem = active },
-                        )
-                        Spacer(Modifier.height(10.dp))
-                    }
                     SessionPeek(items = state.items, onClick = { sessionOpen = true })
                 }
                 Spacer(Modifier.height(84.dp))
@@ -877,57 +867,6 @@ private fun OfflineNotice(state: UploadUiState, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun QuickLinkCard(
-    link: String,
-    onCopy: () -> Unit,
-    onQr: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer,
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Link ready",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    link,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                    ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            IconButton(onClick = onQr) {
-                Icon(
-                    juiceboxIcon(JuiceboxIcons.qrCode),
-                    contentDescription = "QR code",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            IconButton(onClick = onCopy) {
-                Icon(
-                    juiceboxIcon(JuiceboxIcons.copy),
-                    contentDescription = "Copy link",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun SessionPeek(items: List<SessionItem>, onClick: () -> Unit) {
     val latest = items.firstOrNull()
     val (detail, tint) = when (latest?.status) {
@@ -1053,9 +992,8 @@ private fun SessionSheet(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    items(items, key = { it.id }) { item ->
+                    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                         SessionSheetItem(
                             item = item,
                             defaultVariant = variant,
@@ -1064,6 +1002,11 @@ private fun SessionSheet(
                             onDelete = { onDelete(item) },
                             onQr = { onQr(item) },
                         )
+                        if (index < items.lastIndex) {
+                            Spacer(Modifier.height(14.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(Modifier.height(14.dp))
+                        }
                     }
                 }
             }
@@ -1162,9 +1105,15 @@ private fun SessionSheetItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (!link.isNullOrBlank()) {
+                var selected by remember(item.id, defaultVariant) {
+                    mutableStateOf(defaultVariant)
+                }
+                val runningLink = item.linkFor(selected)
+                if (!runningLink.isNullOrBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    LinkVariantSelector(selected = selected, onSelect = { selected = it })
                     Spacer(Modifier.height(8.dp))
-                    LinkCopyRow(link = link, onCopy = onCopy)
+                    LinkCopyRow(link = runningLink, onCopy = onCopy)
                 }
             }
 

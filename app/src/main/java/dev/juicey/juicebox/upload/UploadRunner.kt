@@ -106,6 +106,12 @@ class UploadRunner(
                             resultDeleteToken = reserved.deleteToken,
                         )
                     }
+                    // Quick link means the link is ready at reserve time, not
+                    // after the last byte. Copy it now if auto-copy is on.
+                    if (core.settings.value.autoCopy) {
+                        val link = preferredLink(reserved.url, reserved.rawUrl, reserved.downloadUrl)
+                        if (copyLink(link)) markCopied(task.localId)
+                    }
                 },
                 onProgress = { progress ->
                     _progress.update { it + (task.localId to progress) }

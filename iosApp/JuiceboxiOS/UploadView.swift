@@ -725,24 +725,16 @@ struct UploadView: View {
                             .foregroundStyle(palette.onSurfaceVariant)
                     }
                 }
-                if model.isUploading, let url = model.reservedUrl {
-                    HStack(spacing: 8) {
-                        if let link = URL(string: url) {
-                            Link(url, destination: link)
-                        } else {
-                            Text(url)
+                if model.isUploading, let preview = model.reservedUrl {
+                    VStack(alignment: .leading, spacing: 2) {
+                        linkLine("Preview", preview, palette)
+                        if let raw = model.reservedRawUrl, !raw.isEmpty {
+                            linkLine("Raw", raw, palette)
                         }
-                        Button {
-                            UIPasteboard.general.string = url
-                            model.flash("Link copied")
-                        } label: {
-                            Image(systemName: "doc.on.doc")
+                        if let download = model.reservedDownloadUrl, !download.isEmpty {
+                            linkLine("Download", download, palette)
                         }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Copy link")
                     }
-                    .font(JuiceFont.mono(11))
-                    .lineLimit(1)
                 }
             }
             .padding(.top, 4)
@@ -755,6 +747,25 @@ struct UploadView: View {
                 .foregroundStyle(palette.onSurface)
         }
         .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    private func linkLine(
+        _ label: String,
+        _ value: String,
+        _ palette: JuicePalette
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(label)
+                .foregroundStyle(palette.onSurfaceVariant)
+            if let url = URL(string: value) {
+                Link(value, destination: url)
+                    .lineLimit(1)
+            } else {
+                Text(value).lineLimit(1)
+            }
+        }
+        .font(JuiceFont.mono(10))
     }
 
     private var progressLabel: String {

@@ -29,6 +29,8 @@ final class AppModel: ObservableObject {
     @Published var uploadBytesTotal: Int64 = 0
     @Published var uploadSpeed: Double = 0
     @Published var reservedUrl: String?
+    @Published var reservedRawUrl: String?
+    @Published var reservedDownloadUrl: String?
     @Published var sessionItems: [UploadSessionItem] = []
     @Published var lastUpload: LibraryFile?
     @Published var toast: String?
@@ -374,8 +376,18 @@ final class AppModel: ObservableObject {
                 self?.finishUpload(file: file, error: error)
             },
             onReserved: { [weak self] link in
-                self?.reservedUrl = link.url
-                self?.updateSession(self?.currentSessionId) { item in
+                guard let self else { return }
+                self.reservedUrl = link.url
+                self.reservedRawUrl = link.rawUrl
+                self.reservedDownloadUrl = link.downloadUrl
+                self.copy(
+                    self.preferredLink(
+                        preview: link.url,
+                        raw: link.rawUrl,
+                        download: link.downloadUrl
+                    )
+                )
+                self.updateSession(self.currentSessionId) { item in
                     item.url = link.url
                     item.rawUrl = link.rawUrl
                     item.downloadUrl = link.downloadUrl
@@ -451,8 +463,18 @@ final class AppModel: ObservableObject {
                 self?.finishUpload(file: file, error: error)
             },
             onReserved: { [weak self] link in
-                self?.reservedUrl = link.url
-                self?.updateSession(self?.currentSessionId) { item in
+                guard let self else { return }
+                self.reservedUrl = link.url
+                self.reservedRawUrl = link.rawUrl
+                self.reservedDownloadUrl = link.downloadUrl
+                self.copy(
+                    self.preferredLink(
+                        preview: link.url,
+                        raw: link.rawUrl,
+                        download: link.downloadUrl
+                    )
+                )
+                self.updateSession(self.currentSessionId) { item in
                     item.url = link.url
                     item.rawUrl = link.rawUrl
                     item.downloadUrl = link.downloadUrl
@@ -474,6 +496,8 @@ final class AppModel: ObservableObject {
         uploadBytesTotal = size
         uploadSpeed = 0
         reservedUrl = nil
+        reservedRawUrl = nil
+        reservedDownloadUrl = nil
         lastUpload = nil
         let sessionId = UUID().uuidString
         currentSessionId = sessionId
@@ -634,6 +658,14 @@ final class AppModel: ObservableObject {
         case "raw": return file.rawUrl.isEmpty ? swapPrefix(file.url, "f") : file.rawUrl
         case "download": return file.downloadUrl.isEmpty ? swapPrefix(file.url, "d") : file.downloadUrl
         default: return file.url.isEmpty ? file.rawUrl : file.url
+        }
+    }
+
+    private func preferredLink(preview: String, raw: String, download: String) -> String {
+        switch settings.linkVariant {
+        case "raw": return raw.isEmpty ? preview : raw
+        case "download": return download.isEmpty ? preview : download
+        default: return preview.isEmpty ? raw : preview
         }
     }
 
