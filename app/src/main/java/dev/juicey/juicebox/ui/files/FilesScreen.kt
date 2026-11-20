@@ -24,7 +24,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -274,8 +273,6 @@ private fun FileRow(
     var menu by remember { mutableStateOf(false) }
     var copied by remember(file.localId) { mutableStateOf(false) }
     val haptics = LocalJuiceHaptics.current
-    val uriHandler = LocalUriHandler.current
-    val playUrl = file.url.ifBlank { file.rawUrl }
 
     Row(
         modifier = Modifier
@@ -349,21 +346,6 @@ private fun FileRow(
             } else if (file.expiresAt > 0) {
                 Spacer(Modifier.height(8.dp))
                 RetentionBar(file)
-            }
-        }
-        if (file.mimeType.startsWith("audio/") && playUrl.isNotBlank() &&
-            !file.isPending && !file.isFailed
-        ) {
-            IconButton(onClick = {
-                haptics.tick()
-                uriHandler.openUri(playUrl)
-            }) {
-                Icon(
-                    juiceboxIcon(JuiceboxIcons.play),
-                    contentDescription = "Play audio",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp),
-                )
             }
         }
         if (!file.isPending && !file.isFailed) {
@@ -654,14 +636,29 @@ private fun FileDetailSheet(
                 }
             } else if (isAudio && link.isNotBlank()) {
                 Spacer(Modifier.height(12.dp))
-                FilledTonalButton(onClick = { uriHandler.openUri(link) }) {
-                    Icon(
-                        juiceboxIcon(JuiceboxIcons.play),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Play in browser")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp)
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                        .clickable { uriHandler.openUri(link) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(58.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                juiceboxIcon(JuiceboxIcons.audioWaveform),
+                                contentDescription = "Play audio",
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
                 }
             }
 

@@ -34,6 +34,32 @@ struct FileDetailView: View {
             }
             .listRowBackground(ListRowSurface(palette: palette))
 
+            if current.mimeType.hasPrefix("audio/") {
+                Section {
+                    Button {
+                        let link = current.url.isEmpty ? current.rawUrl : current.url
+                        if let url = URL(string: link) { openURL(url) }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(palette.surfaceContainerHigh)
+                            Image(systemName: "waveform")
+                                .font(.system(size: 28, weight: .semibold))
+                                .foregroundStyle(palette.primary)
+                                .frame(width: 64, height: 64)
+                                .background(
+                                    Circle().fill(palette.surfaceContainerLow)
+                                )
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 190)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Play audio")
+                }
+                .listRowBackground(ListRowSurface(palette: palette))
+            }
+
             Section("Links") {
                 ForEach(variants.indices, id: \.self) { index in
                     linkRow(

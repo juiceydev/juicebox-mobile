@@ -85,8 +85,6 @@ struct FilesView: View {
 }
 
 struct FileRow: View {
-    @Environment(\.openURL) private var openURL
-
     let file: LibraryFile
     let palette: JuicePalette
 
@@ -97,8 +95,6 @@ struct FileRow: View {
     private var isPending: Bool {
         file.status == "queued" || file.status == "uploading"
     }
-
-    private var isAudio: Bool { file.mimeType.hasPrefix("audio/") }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -121,19 +117,6 @@ struct FileRow: View {
                     }
                 }
                 .buttonStyle(.plain)
-
-                if isAudio {
-                    Button {
-                        let link = file.url.isEmpty ? file.rawUrl : file.url
-                        if let url = URL(string: link) { openURL(url) }
-                    } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(palette.primary)
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Play \(file.filename)")
-                }
             }
 
             if !isFailed && !isPending && file.expiresAt > 0 {
